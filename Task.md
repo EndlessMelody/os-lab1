@@ -63,13 +63,13 @@ TV1 có 3 chương trình nhưng `sleep` ngắn; phần chính là quản lý ti
 
 ### T1.4 — Tích hợp và đóng gói
 
-**Bàn giao TV1:** xem `docs/tv1/README.md`, `grade-tv1` và `tools/package-tv1.py`. Các mục dưới đây áp dụng cho bản chung đủ 7 chương trình; không đánh dấu hoàn thành khi còn thiếu source TV2/TV3.
+**Bản tích hợp:** nhánh `util` đã ghép đủ 3 nhánh thành viên. Xem `docs/lab01/README.md`, `make check-lab01` và `tools/package-lab01.py`. Gói source/patch kỹ thuật đã sẵn sàng cho viết báo cáo; gói nộp cuối còn chờ PDF, MSSV và xác nhận của cả nhóm.
 
 - [x] Ghi lại commit gốc trên nhánh `util` làm baseline cho cả nhóm. Hash: `79e8024d61c3dd92ccf064fc67bb99cb999f70ab` (xem `docs/tv1/BASELINE`).
-- [ ] Thêm đủ 7 chương trình vào `UPROGS` trong `Makefile`.
-- [ ] Ghép các phần bàn giao, build và chạy trên source chung.
-- [ ] Sinh patch so với baseline; kiểm tra patch chứa cả các file mới.
-- [ ] Chạy `make clean` trước khi tạo ZIP source cuối cùng.
+- [x] Thêm đủ 7 chương trình vào `UPROGS` trong `Makefile`.
+- [x] Ghép các phần bàn giao, build và chạy trên source chung.
+- [x] Sinh patch so với baseline; kiểm tra patch chứa cả các file mới.
+- [x] Chạy `make clean` trước khi tạo ZIP source cuối cùng.
 - [ ] Đóng gói đúng tên và cấu trúc đề yêu cầu; chuyển cả nhóm kiểm tra trước khi nộp.
 
 ## 4. Công việc của TV2
@@ -78,13 +78,13 @@ TV1 có 3 chương trình nhưng `sleep` ngắn; phần chính là quản lý ti
 
 **File:** `user/cp.c` · **Cú pháp:** `cp src dst`
 
-- [ ] Kiểm tra số đối số và in hướng dẫn sử dụng khi sai.
-- [ ] Mở nguồn read-only; mở đích để ghi, tạo mới hoặc ghi đè.
-- [ ] Copy theo buffer, ví dụ 512 hoặc 1024 bytes.
-- [ ] Bảo đảm ghi đủ dữ liệu đọc được; xử lý trường hợp ghi chưa đủ buffer.
-- [ ] Khi ghi đè file dài bằng file ngắn, không để dữ liệu cũ ở cuối file đích.
-- [ ] Báo lỗi mở/đọc/ghi; đóng FD trong cả nhánh thành công và nhánh lỗi.
-- [ ] Kiểm thử file rỗng, file nhỏ, file lớn hơn buffer, nguồn không tồn tại và ghi đè.
+- [x] Kiểm tra số đối số và in hướng dẫn sử dụng khi sai.
+- [x] Mở nguồn read-only; mở đích để ghi, tạo mới hoặc ghi đè.
+- [x] Copy theo buffer, ví dụ 512 hoặc 1024 bytes.
+- [x] Bảo đảm ghi đủ dữ liệu đọc được; xử lý trường hợp ghi chưa đủ buffer.
+- [x] Khi ghi đè file dài bằng file ngắn, không để dữ liệu cũ ở cuối file đích.
+- [x] Báo lỗi mở/đọc/ghi; đóng FD trong cả nhánh thành công và nhánh lỗi.
+- [x] Kiểm thử file rỗng, file nhỏ, file lớn hơn buffer, nguồn không tồn tại và ghi đè.
 
 **Hoàn thành khi:** nội dung và kích thước file đích khớp nguồn; lỗi được báo rõ. Nhóm nên bổ sung kiểm tra nguồn và đích cùng file trước khi truncate để tránh mất dữ liệu.
 
@@ -92,15 +92,15 @@ TV1 có 3 chương trình nhưng `sleep` ngắn; phần chính là quản lý ti
 
 **File:** `user/diff.c` · **Cú pháp:** `diff file1 file2 [-q]`
 
-- [ ] Đọc hai file theo từng dòng và so sánh bằng xử lý chuỗi phù hợp.
-- [ ] Dòng giống nhau không được in; hai file giống hệt thì không in gì.
-- [ ] Dòng khác nhau: nội dung file1 có tiền tố `<`, nội dung file2 có tiền tố `>`.
-- [ ] Ghi tên file và số dòng theo format thống nhất của nhóm.
-- [ ] Nếu một file EOF trước, tiếp tục xử lý phần còn lại của file kia.
-- [ ] Với `-q`, chỉ in `diff: files differ` một lần nếu có khác biệt.
-- [ ] Hỗ trợ cả `diff f1 f2 -q` và `diff -q f1 f2`, vì đề có hai cách viết.
-- [ ] Không cắt dòng dài một cách im lặng; chọn cách xử lý rõ ràng và ghi giới hạn nếu còn hạn chế.
-- [ ] Kiểm thử file rỗng, hai file giống nhau, khác giữa file, khác số dòng, dòng dài và dòng cuối không có newline.
+- [x] Đọc hai file theo từng dòng và so sánh bằng xử lý chuỗi phù hợp.
+- [x] Dòng giống nhau không được in; hai file giống hệt thì không in gì.
+- [x] Dòng khác nhau: nội dung file1 có tiền tố `<`, nội dung file2 có tiền tố `>`.
+- [x] Ghi tên file và số dòng theo format thống nhất của nhóm.
+- [x] Nếu một file EOF trước, tiếp tục xử lý phần còn lại của file kia.
+- [x] Với `-q`, chỉ in `diff: files differ` một lần nếu có khác biệt.
+- [x] Hỗ trợ cả `diff f1 f2 -q` và `diff -q f1 f2`, vì đề có hai cách viết.
+- [x] Không cắt dòng dài một cách im lặng; chọn cách xử lý rõ ràng và ghi giới hạn nếu còn hạn chế.
+- [x] Kiểm thử file rỗng, hai file giống nhau, khác giữa file, khác số dòng, dòng dài và dòng cuối không có newline.
 
 **Hoàn thành khi:** đáp ứng so sánh theo vị trí dòng ở mức cơ bản của đề. Không cần triển khai thuật toán tìm chuỗi con chung dài nhất hoặc diff tối ưu như GNU diff.
 
@@ -118,14 +118,14 @@ TV1 có 3 chương trình nhưng `sleep` ngắn; phần chính là quản lý ti
 
 **File:** `user/tree.c` · **Cú pháp:** `tree [path] [-L depth] [-d]`
 
-- [ ] Dùng `.` làm path mặc định.
-- [ ] Duyệt thư mục bằng `open`/`read`, dùng `fstat` để phân biệt loại entry.
-- [ ] Duyệt đệ quy nhưng bỏ qua `.` và `..`.
-- [ ] In path gốc và cấu trúc con bằng một style cố định.
-- [ ] Với `-L 1`, chỉ in gốc và các mục con trực tiếp.
-- [ ] Với `-d`, chỉ in thư mục.
-- [ ] Kiểm tra đối số, giới hạn đường dẫn và lỗi mở/đọc; đóng FD đầy đủ.
-- [ ] Kiểm thử thư mục rỗng, cây nhiều cấp, path sai, `-L 1`, `-L 2`, `-d`, kết hợp `-L` và `-d`.
+- [x] Dùng `.` làm path mặc định.
+- [x] Duyệt thư mục bằng `open`/`read`, dùng `fstat` để phân biệt loại entry.
+- [x] Duyệt đệ quy nhưng bỏ qua `.` và `..`.
+- [x] In path gốc và cấu trúc con bằng một style cố định.
+- [x] Với `-L 1`, chỉ in gốc và các mục con trực tiếp.
+- [x] Với `-d`, chỉ in thư mục.
+- [x] Kiểm tra đối số, giới hạn đường dẫn và lỗi mở/đọc; đóng FD đầy đủ.
+- [x] Kiểm thử thư mục rỗng, cây nhiều cấp, path sai, `-L 1`, `-L 2`, `-d`, kết hợp `-L` và `-d`.
 
 **Hoàn thành khi:** cây đúng độ sâu và đúng bộ lọc, không lặp vô hạn. Nhóm chọn dùng khoảng trắng thụt lề theo cấp cho bản cơ bản; style này được đề cho phép.
 
@@ -133,14 +133,14 @@ TV1 có 3 chương trình nhưng `sleep` ngắn; phần chính là quản lý ti
 
 **File:** `user/du.c` · **Cú pháp:** `du [path] [-a] [-s]`
 
-- [ ] Dùng `.` làm path mặc định; duyệt đệ quy và bỏ `.`/`..`.
-- [ ] Lấy dung lượng file từ `st.size`, đơn vị bytes.
-- [ ] Cộng dồn dung lượng các file trong toàn bộ cây con.
-- [ ] Mặc định chỉ in thư mục; `-a` in cả file và thư mục.
-- [ ] Với `-s`, chỉ in tổng của path được chọn.
-- [ ] Dùng format `<bytes>\t<path>`; chọn kiểu số đủ lớn cho tổng dung lượng.
-- [ ] Đóng FD, kiểm tra giới hạn đường dẫn và báo lỗi truy cập rõ ràng.
-- [ ] Kiểm thử thư mục rỗng, một file, cây nhiều cấp, `-a`, `-s` và kết hợp hai option.
+- [x] Dùng `.` làm path mặc định; duyệt đệ quy và bỏ `.`/`..`.
+- [x] Lấy dung lượng file từ `st.size`, đơn vị bytes.
+- [x] Cộng dồn dung lượng các file trong toàn bộ cây con.
+- [x] Mặc định chỉ in thư mục; `-a` in cả file và thư mục.
+- [x] Với `-s`, chỉ in tổng của path được chọn.
+- [x] Dùng format `<bytes>\t<path>`; chọn kiểu số đủ lớn cho tổng dung lượng.
+- [x] Đóng FD, kiểm tra giới hạn đường dẫn và báo lỗi truy cập rõ ràng.
+- [x] Kiểm thử thư mục rỗng, một file, cây nhiều cấp, `-a`, `-s` và kết hợp hai option.
 
 **Hoàn thành khi:** tổng đúng dữ liệu thực tế và quy ước nhất quán. Quy ước nội bộ: không cộng `st.size` của bản thân thư mục; thư mục rỗng có tổng 0; khi có cả `-a` và `-s`, `-s` ưu tiên và chỉ in tổng.
 
@@ -149,9 +149,9 @@ TV1 có 3 chương trình nhưng `sleep` ngắn; phần chính là quản lý ti
 ### T3.3 — Tổng hợp kiểm thử
 
 - [ ] Thu danh sách test và kết quả từ cả ba thành viên.
-- [ ] Tổng hợp test bắt buộc, test biên và các lỗi còn mở.
+- [x] Tổng hợp test bắt buộc, test biên và các lỗi còn mở. Xem `docs/lab01/README.md` và log tích hợp.
 - [ ] Theo dõi kiểm thử chéo; chỉ đánh dấu đạt khi có kết quả thực tế.
-- [ ] Viết phần `tree`, `du`, giải thích quy ước dung lượng và kết quả kiểm thử.
+- [x] Viết phần `tree`, `du`, giải thích quy ước dung lượng và kết quả kiểm thử. Có ghi chú kỹ thuật để ghép vào báo cáo trong `docs/lab01/README.md`.
 
 ## 6. Quy ước chung trước khi viết code
 
@@ -194,14 +194,14 @@ Các quy ước trên là lựa chọn của nhóm, không phải tất cả đ�
 
 ## 8. Checklist nghiệm thu và nộp bài
 
-- [ ] Bản chung build thành công, khởi động được và có đủ 7 chương trình.
-- [ ] Các test chức năng và trường hợp biên đã được chạy trên bản chung.
-- [ ] `pingpong`/`primes` không treo; file/thư mục được xử lý đúng quy ước.
+- [x] Bản chung build thành công, khởi động được và có đủ 7 chương trình.
+- [x] Các test chức năng và trường hợp biên đã được chạy trên bản chung.
+- [x] `pingpong`/`primes` không treo; file/thư mục được xử lý đúng quy ước.
 - [ ] Báo cáo có bảng đóng góp từng người, giải pháp, kết quả test và giới hạn thực tế.
 - [ ] PDF ngắn gọn, đọc được, không chứa toàn bộ mã nguồn.
-- [ ] Patch được tạo so với baseline và chứa đầy đủ file mới/thay đổi cần nộp. File mới phải được Git theo dõi trước khi sinh patch; chỉ dùng `git diff` sau commit có thể làm thiếu phần đã commit.
-- [ ] Thử áp patch lên một bản source sạch cùng baseline và kiểm tra build.
-- [ ] Source được chạy `make clean` trước khi ZIP. Hoàn tất lưu bằng chứng test trước bước này vì ảnh filesystem có thể bị tạo lại ở lần build sau.
+- [x] Patch được tạo so với baseline và chứa đầy đủ file mới/thay đổi cần nộp. File mới phải được Git theo dõi trước khi sinh patch; chỉ dùng `git diff` sau commit có thể làm thiếu phần đã commit.
+- [x] Thử áp patch lên một bản source sạch cùng baseline và kiểm tra build.
+- [x] Source được chạy `make clean` trước khi ZIP. Hoàn tất lưu bằng chứng test trước bước này vì ảnh filesystem có thể bị tạo lại ở lần build sau.
 - [ ] Tên ZIP và report dùng MSSV theo thứ tự tăng dần, không dùng TV1–TV3.
 - [ ] Cả nhóm kiểm tra nội dung gói cuối; nộp trên MOODLE.
 
@@ -224,16 +224,16 @@ Giữ cách viết `Realease` theo đề gốc; đối chiếu hướng dẫn n�
 
 | Task | Owner | Code | Tự test | Review chéo | Báo cáo | Ghi chú |
 |---|---|---|---|---|---|---|
-| sleep | TV1 | Hoàn thành | Hoàn thành | Chờ TV3 | Đã bàn giao nội dung | `docs/tv1/README.md` và log |
-| pingpong | TV1 | Hoàn thành | Hoàn thành | Chờ TV3 | Đã bàn giao nội dung | 50 lần chạy liên tiếp |
-| primes | TV1 | Hoàn thành | Hoàn thành | Chờ TV3 | Đã bàn giao nội dung | 20 lần, đủ 59 số nguyên tố |
-| cp | TV2 | Chưa làm | Chưa làm | TV1 | Chưa làm | |
-| diff | TV2 | Chưa làm | Chưa làm | TV1 | Chưa làm | |
-| tree | TV3 | Chưa làm | Chưa làm | TV2 | Chưa làm | |
-| du | TV3 | Chưa làm | Chưa làm | TV2 | Chưa làm | |
-| Tích hợp và đóng gói | TV1 | Đang làm | Đạt phần TV1 | Chờ cả nhóm | Không áp dụng | Đã thêm 3 entry; có script tạo/kiểm tra patch và ZIP bàn giao; chờ source TV2/TV3, PDF và MSSV |
-| Tổng hợp report PDF | TV2 | Không áp dụng | Không áp dụng | Cả nhóm | Chưa làm | |
-| Tổng hợp test | TV3 | Không áp dụng | Chưa làm | Cả nhóm | Chưa làm | |
+| sleep | TV1 | Hoàn thành | Hoàn thành | Đã review tích hợp; chờ TV3 xác nhận | Có nội dung kỹ thuật | `docs/lab01/README.md` và log |
+| pingpong | TV1 | Hoàn thành | Hoàn thành | Đã review tích hợp; chờ TV3 xác nhận | Có nội dung kỹ thuật | 50 lần chạy liên tiếp; test thiếu FD |
+| primes | TV1 | Hoàn thành | Hoàn thành | Đã review tích hợp; chờ TV3 xác nhận | Có nội dung kỹ thuật | 20 lần, đủ 59 số; test lỗi tầng pipe |
+| cp | TV2 | Hoàn thành | Hoàn thành trên bản chung | Đã review tích hợp; chờ TV1 xác nhận | Có nội dung kỹ thuật | 13 case chức năng và lỗi FD |
+| diff | TV2 | Hoàn thành | Hoàn thành trên bản chung | Đã review tích hợp; chờ TV1 xác nhận | Có nội dung kỹ thuật | 23 case; -q hai vị trí, dòng dài, newline |
+| tree | TV3 | Hoàn thành | Hoàn thành trên bản chung | Đã review tích hợp; chờ TV2 xác nhận | Có nội dung kỹ thuật | 21 case; sửa tên 14 byte, path và mã lỗi |
+| du | TV3 | Hoàn thành | Hoàn thành trên bản chung | Đã review tích hợp; chờ TV2 xác nhận | Có nội dung kỹ thuật | 17 case; tổng 64 bit và mã lỗi |
+| Tích hợp và đóng gói | TV1 | Hoàn thành phần code | Hoàn thành | Chờ cả nhóm xác nhận | Không áp dụng | Đủ 7 chương trình trên util; patch/source sạch; gói cuối chờ PDF và MSSV |
+| Tổng hợp report PDF | TV2 | Không áp dụng | Không áp dụng | Cả nhóm | Chờ viết PDF | Nội dung kỹ thuật và minh chứng: docs/lab01 |
+| Tổng hợp test | TV3 | Không áp dụng | Có bộ test và log tích hợp | Chờ cả nhóm xác nhận | Có ma trận test | make check-lab01; docs/lab01 |
 
 Trạng thái đề xuất: `Chưa làm`, `Đang làm`, `Chờ review`, `Cần sửa`, `Hoàn thành`.
 

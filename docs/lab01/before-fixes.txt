@@ -1,0 +1,23 @@
+/home/melody/xv6-labs-2024/./grade-lab01:19: SyntaxWarning: invalid escape sequence '\('
+  no=['FAIL:', 'panic:', 'usertrap\(', 'exec .* failed'])
+make: 'kernel/kernel' is up to date.
+== Test Lab01 tree depth, filters, paths and errors == Lab01 tree depth, filters, paths and errors: FAIL (6.1s)
+    ...
+         hart 1 starting
+         init: starting sh
+         $ lab01check tree
+    BAD  FAIL: tree exit status: expected 1, got 0
+         $ qemu-system-riscv64: terminating on signal 15 from pid 11347 (make)
+    unexpected lines in output
+    MISSING '^LAB01_TREE_OK: [0-9]+ cases$'
+    QEMU output saved to xv6.out.lab01.tree.tree
+== Test Lab01 du byte totals, options, paths and errors == Lab01 du byte totals, options, paths and errors: FAIL (7.6s)
+    ...
+         hart 1 starting
+         init: starting sh
+         $ lab01check du
+    BAD  FAIL: du exit status: expected 1, got 0
+         $ qemu-system-riscv64: terminating on signal 15 from pid 11408 (make)
+    unexpected lines in output
+    MISSING '^LAB01_DU_OK: [0-9]+ cases$'
+    QEMU output saved to xv6.out.lab01.du.du

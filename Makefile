@@ -172,6 +172,12 @@ $U/_forktest: $U/forktest.o $(ULIB)
 $U/_tv1check: tests/tv1check.o $(ULIB)
 	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $^
 
+$U/_lab01check: tests/lab01check.o $(ULIB)
+	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $^
+
+$U/_dusizecheck: tests/dusizecheck.o $(ULIB)
+	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $^
+
 mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 	gcc $(XCFLAGS) -Werror -Wall -I. -o mkfs/mkfs mkfs/mkfs.c
 
@@ -204,7 +210,7 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_tree\
-    $U/_du
+	$U/_du
 
 
 
@@ -287,7 +293,7 @@ endif
 fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
 	mkfs/mkfs fs.img README $(UEXTRA) $(UPROGS)
 
--include kernel/*.d user/*.d
+-include kernel/*.d user/*.d tests/*.d
 
 clean:
 	rm -rf *.tex *.dvi *.idx *.aux *.log *.ind *.ilg *.dSYM *.zip *.pcap \
@@ -356,6 +362,11 @@ grade:
           (echo "'make clean' failed.  HINT: Do you have another running instance of xv6?" && exit 1)
 	./grade-lab-$(LAB) $(GRADEFLAGS)
 
+check-lab01:
+	./grade-lab-util sleep pingpong primes
+	./grade-tv1
+	./grade-lab01
+
 ##
 ## FOR submissions
 ##
@@ -385,4 +396,4 @@ submit-check:
 zipball: clean submit-check
 	git archive --verbose --format zip --output lab.zip HEAD
 
-.PHONY: zipball clean grade submit-check
+.PHONY: zipball clean grade check-lab01 submit-check

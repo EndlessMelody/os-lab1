@@ -1,0 +1,27 @@
+*** Now run 'gdb' in another window.
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ lab01check du
+PASS: du missing path gives nonzero status
+PASS: du directory totals exclude directory metadata
+PASS: du -a includes every file with exact byte sizes
+PASS: du -s only root total
+PASS: du -a -s gives summary priority
+PASS: du empty directory is zero
+PASS: du file root without -a is silent
+PASS: du -a file root
+PASS: du -s file root
+PASS: du trailing slash
+PASS: du default path is current directory
+PASS: du unknown option
+PASS: du multiple paths
+PASS: du oversized root path
+PASS: du joined path exceeds MAXPATH
+PASS: du -s reports traversal error
+PASS: du deep recursion fails cleanly at FD limit
+LAB01_DU_OK: 17 cases
+$ qemu-system-riscv64: terminating on signal 15 from pid 15827 (make)

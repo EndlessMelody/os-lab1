@@ -1,0 +1,12 @@
+*** Now run 'gdb' in another window.
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ dusizecheck
+0	zero
+4294967296	wide
+18446744073709551615	maximum
+$ qemu-system-riscv64: terminating on signal 15 from pid 16050 (make)

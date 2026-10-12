@@ -12,7 +12,7 @@ main(int argc, char *argv[])
     struct stat src_stat, dst_stat;
 
     if (argc != 3) {
-        fprintf(2, "Usage: cp source destination\n");
+        fprintf(2, "cp: usage: cp source destination\n");
         exit(1);
     }
 

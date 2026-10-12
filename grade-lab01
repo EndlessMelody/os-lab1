@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""Tests for the seven programs in Task.md; the MIT grader is unchanged."""
+
+import subprocess
+from gradelib import *
+
+r = Runner()
+
+
+def check_group(group):
+    subprocess.run(['make', '-s', 'user/_lab01check'], check=True)
+    maybe_unlink('fs.img')
+    r.run_qemu(save('xv6.out.lab01.' + group),
+               shell_script(['lab01check ' + group]),
+               make_args=['UEXTRA=user/xargstest.sh user/_lab01check'],
+               timeout=60)
+    r.match('^LAB01_' + group.upper() + '_OK: [0-9]+ cases$',
+            no=['FAIL:', 'panic:', r'usertrap\(', 'exec .* failed'])
+    print('\n' + '\n'.join(line for line in r.qemu.output.splitlines()
+                           if line.startswith(('PASS:', 'LAB01_'))))
+
+
+@test(10, 'Lab01 cp contents, overwrite, same inode and errors')
+def test_cp():
+    check_group('cp')
+
+
+@test(10, 'Lab01 diff lines, quiet mode, long lines and errors')
+def test_diff():
+    check_group('diff')
+
+
+@test(10, 'Lab01 tree depth, filters, paths and errors')
+def test_tree():
+    check_group('tree')
+
+
+@test(10, 'Lab01 du byte totals, options, paths and errors')
+def test_du():
+    check_group('du')
+
+
+@test(10, 'Lab01 descriptor exhaustion and pipe failure cleanup')
+def test_resources():
+    check_group('resources')
+
+
+@test(10, 'Lab01 du full 64-bit size formatting')
+def test_size_format():
+    subprocess.run(['make', '-s', 'user/_dusizecheck'], check=True)
+    maybe_unlink('fs.img')
+    r.run_qemu(save('xv6.out.lab01.size'), shell_script(['dusizecheck']),
+               make_args=['UEXTRA=user/xargstest.sh user/_dusizecheck'])
+    r.match('^0\tzero$', '^4294967296\twide$',
+            '^18446744073709551615\tmaximum$',
+            no=['panic:', r'usertrap\(', 'exec .* failed'])
+
+
+@test(10, 'Lab01 complete seven-program shell workflow')
+def test_workflow():
+    maybe_unlink('fs.img')
+    r.run_qemu(save('xv6.out.lab01.flow'), shell_script([
+        'mkdir demo', 'echo hello > demo/a', 'cp demo/a demo/b',
+        'diff -q demo/a demo/b', 'tree demo -L 1', 'du demo -s',
+        'sleep 0', 'pingpong', 'primes | wc', 'echo LAB01_FLOW_OK'
+    ]))
+    r.match('^demo$', r'^\|-- a$', r'^\|-- b$', '^12\tdemo$',
+            r'^\d+: received ping$', r'^\d+: received pong$',
+            r'^59 118 561 *$', '^LAB01_FLOW_OK$',
+            no=['diff: files differ', 'cannot ', 'failed', 'panic:', r'usertrap\('])
+
+
+run_tests()

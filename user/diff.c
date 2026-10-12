@@ -32,9 +32,8 @@ read_line(int fd, char **buffer, int *capacity)
 
             if (length > 0)
                 memmove(new_buffer, *buffer, length);
-	if (*buffer != 0) {
-	    free(*buffer);
-	}
+            if (*buffer != 0)
+                free(*buffer);
             *buffer = new_buffer;
             *capacity = new_capacity;
         }
@@ -182,6 +181,6 @@ main(int argc, char *argv[])
     exit(result);
 
 usage:
-    fprintf(2, "Usage: diff file1 file2 [-q]\n");
+    fprintf(2, "diff: usage: diff file1 file2 [-q]\n");
     exit(2);
 }

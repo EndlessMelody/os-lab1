@@ -1,0 +1,26 @@
+*** Now run 'gdb' in another window.
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ mkdir demo
+$ echo hello > demo/a
+$ cp demo/a demo/b
+$ diff -q demo/a demo/b
+$ tree demo -L 1
+demo
+|-- a
+|-- b
+$ du demo -s
+12	demo
+$ sleep 0
+$ pingpong
+11: received ping
+10: received pong
+$ primes | wc
+59 118 561
+$ echo LAB01_FLOW_OK
+LAB01_FLOW_OK
+$ qemu-system-riscv64: terminating on signal 15 from pid 16081 (make)
