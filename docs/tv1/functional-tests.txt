@@ -1,0 +1,7 @@
+make: 'kernel/kernel' is up to date.
+== Test TV1 sleep arguments and return to shell == TV1 sleep arguments and return to shell: OK (2.5s)
+== Test TV1 pingpong repeated 50 times == TV1 pingpong repeated 50 times: OK (2.0s)
+== Test TV1 primes exact output, repeated 20 times == TV1 primes exact output, repeated 20 times: OK (12.2s)
+== Test TV1 programs used in shell pipelines == TV1 programs used in shell pipelines: OK (1.4s)
+== Test TV1 exit statuses and elapsed xv6 ticks == TV1 exit statuses and elapsed xv6 ticks: OK (2.9s)
+Score: 50/50
