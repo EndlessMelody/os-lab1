@@ -27,6 +27,8 @@ Thành viên:
 
 - Báo cáo có logo trường, đủ họ tên/MSSV, hai hình minh chứng và bảng đóng góp;
   12 trang tổng cộng, gồm 8 trang nội dung chính. Không còn chỗ trống cần điền.
+- PDF trong gói đã cập nhật học vị ThS. của Lê Viết Long và Phạm Tuấn Sơn;
+  thông tin lớp và giảng viên được trình bày thành hai cột trên bìa.
 - PDF biên dịch không có cảnh báo và đạt kiểm tra bố cục, tham chiếu, font,
   thông tin tác giả, logo và nguồn dữ liệu của các hình.
 - Patch áp được lên baseline `79e8024d61c3dd92ccf064fc67bb99cb999f70ab`
@@ -37,6 +39,8 @@ Thành viên:
   biên dịch lại và chạy công cụ xác minh báo cáo từ chính gói source.
 - Source ZIP chứa mã nguồn, log và công cụ kiểm chứng, cùng bản báo cáo
   có thể chỉnh sửa tại `docs/report-source/`. Bản nháp báo cáo cũ không được đóng gói.
+- Bản TEX và hình trong Source ZIP đã được biên dịch lại; nội dung đủ
+  12 trang khớp với PDF nộp kèm.
 - Các tệp ZIP được kiểm tra tính toàn vẹn; SHA-256 nằm trong `SHA256SUMS.txt`.
 
 Nhóm nên đọc lại bảng đóng góp trước khi nộp. Sau đó tải ZIP ngoài lên đúng

@@ -1,26 +1,26 @@
 ./grade-lab-util sleep pingpong primes
-make[1]: Entering directory '/tmp/lab01-submission-c4w6rgwo/xv6-labs-2024'
+make[1]: Entering directory '/tmp/lab01-submission-e2u6vi23/xv6-labs-2024'
 make[1]: 'kernel/kernel' is up to date.
-make[1]: Leaving directory '/tmp/lab01-submission-c4w6rgwo/xv6-labs-2024'
-== Test sleep, no arguments == sleep, no arguments: OK (1.7s) 
-== Test sleep, returns == sleep, returns: OK (0.7s) 
-== Test sleep, makes syscall == sleep, makes syscall: OK (1.0s) 
-== Test pingpong == pingpong: OK (1.0s) 
-== Test primes == primes: OK (1.6s) 
+make[1]: Leaving directory '/tmp/lab01-submission-e2u6vi23/xv6-labs-2024'
+== Test sleep, no arguments == sleep, no arguments: OK (2.0s) 
+== Test sleep, returns == sleep, returns: OK (1.0s) 
+== Test sleep, makes syscall == sleep, makes syscall: OK (0.9s) 
+== Test pingpong == pingpong: OK (0.8s) 
+== Test primes == primes: OK (1.9s) 
 ./grade-tv1
-make[1]: Entering directory '/tmp/lab01-submission-c4w6rgwo/xv6-labs-2024'
+make[1]: Entering directory '/tmp/lab01-submission-e2u6vi23/xv6-labs-2024'
 make[1]: 'kernel/kernel' is up to date.
-make[1]: Leaving directory '/tmp/lab01-submission-c4w6rgwo/xv6-labs-2024'
-== Test TV1 sleep arguments and return to shell == TV1 sleep arguments and return to shell: OK (2.3s) 
-== Test TV1 pingpong repeated 50 times == TV1 pingpong repeated 50 times: OK (1.8s) 
-== Test TV1 primes exact output, repeated 20 times == TV1 primes exact output, repeated 20 times: OK (15.3s) 
-== Test TV1 programs used in shell pipelines == TV1 programs used in shell pipelines: OK (1.3s) 
-== Test TV1 exit statuses and elapsed xv6 ticks == TV1 exit statuses and elapsed xv6 ticks: OK (2.5s) 
+make[1]: Leaving directory '/tmp/lab01-submission-e2u6vi23/xv6-labs-2024'
+== Test TV1 sleep arguments and return to shell == TV1 sleep arguments and return to shell: OK (3.0s) 
+== Test TV1 pingpong repeated 50 times == TV1 pingpong repeated 50 times: OK (2.2s) 
+== Test TV1 primes exact output, repeated 20 times == TV1 primes exact output, repeated 20 times: OK (15.2s) 
+== Test TV1 programs used in shell pipelines == TV1 programs used in shell pipelines: OK (1.5s) 
+== Test TV1 exit statuses and elapsed xv6 ticks == TV1 exit statuses and elapsed xv6 ticks: OK (2.8s) 
 Score: 50/50
 ./grade-lab01
-make[1]: Entering directory '/tmp/lab01-submission-c4w6rgwo/xv6-labs-2024'
+make[1]: Entering directory '/tmp/lab01-submission-e2u6vi23/xv6-labs-2024'
 make[1]: 'kernel/kernel' is up to date.
-make[1]: Leaving directory '/tmp/lab01-submission-c4w6rgwo/xv6-labs-2024'
+make[1]: Leaving directory '/tmp/lab01-submission-e2u6vi23/xv6-labs-2024'
 == Test Lab01 cp contents, overwrite, same inode and errors == 
 PASS: cp empty file
 PASS: cp small file
@@ -36,7 +36,7 @@ PASS: cp destination parent missing
 PASS: cp missing arguments
 PASS: cp extra arguments
 LAB01_CP_OK: 13 cases
-Lab01 cp contents, overwrite, same inode and errors: OK (4.2s) 
+Lab01 cp contents, overwrite, same inode and errors: OK (7.5s) 
 == Test Lab01 diff lines, quiet mode, long lines and errors == 
 PASS: diff empty files
 PASS: diff equal multiline files
@@ -62,7 +62,7 @@ PASS: diff unknown option
 PASS: diff duplicate -q
 PASS: diff extra filename
 LAB01_DIFF_OK: 23 cases
-Lab01 diff lines, quiet mode, long lines and errors: OK (6.4s) 
+Lab01 diff lines, quiet mode, long lines and errors: OK (9.7s) 
 == Test Lab01 tree depth, filters, paths and errors == 
 PASS: tree missing path gives nonzero status
 PASS: tree full hierarchy and 14-character names
@@ -86,7 +86,7 @@ PASS: tree joined path exceeds MAXPATH
 PASS: tree deep recursion fails cleanly at FD limit
 PASS: tree depth limit avoids deep traversal
 LAB01_TREE_OK: 21 cases
-Lab01 tree depth, filters, paths and errors: OK (7.2s) 
+Lab01 tree depth, filters, paths and errors: OK (9.5s) 
 == Test Lab01 du byte totals, options, paths and errors == 
 PASS: du missing path gives nonzero status
 PASS: du directory totals exclude directory metadata
@@ -106,7 +106,7 @@ PASS: du joined path exceeds MAXPATH
 PASS: du -s reports traversal error
 PASS: du deep recursion fails cleanly at FD limit
 LAB01_DU_OK: 17 cases
-Lab01 du byte totals, options, paths and errors: OK (6.9s) 
+Lab01 du byte totals, options, paths and errors: OK (10.1s) 
 == Test Lab01 descriptor exhaustion and pipe failure cleanup == 
 PASS: cp no descriptor available for source
 PASS: diff no descriptor available for first file
@@ -121,7 +121,7 @@ PASS: du child open fails cleanly
 PASS: pingpong second pipe fails without hanging
 PASS: primes filter pipe failure reaches generator
 LAB01_RESOURCES_OK: 12 cases
-Lab01 descriptor exhaustion and pipe failure cleanup: OK (5.9s) 
-== Test Lab01 du full 64-bit size formatting == Lab01 du full 64-bit size formatting: OK (0.9s) 
-== Test Lab01 complete seven-program shell workflow == Lab01 complete seven-program shell workflow: OK (2.0s) 
+Lab01 descriptor exhaustion and pipe failure cleanup: OK (4.4s) 
+== Test Lab01 du full 64-bit size formatting == Lab01 du full 64-bit size formatting: OK (1.1s) 
+== Test Lab01 complete seven-program shell workflow == Lab01 complete seven-program shell workflow: OK (2.2s) 
 Score: 70/70

@@ -16,20 +16,20 @@
   "uploaded": false,
   "files": {
     "24120293_24120347_24120468_Report.pdf": {
-      "sha256": "9d723d8f61048b208abf06d5c86d3493c3661dbc754865df528f274389bc1d53",
-      "bytes": 319955
+      "sha256": "9fbea1dcd6d6fc51246834b738f59ec05cd6e3fc9ee599055238d0a2ca4f828c",
+      "bytes": 319961
     },
     "Realease/24120293_24120347_24120468.patch": {
       "sha256": "0568908245f6d1f18e01fe4c0027d8e9a6b5837f0669db3d59fe6d7673a6b479",
       "bytes": 141716
     },
     "Source/xv6-labs-2024.zip": {
-      "sha256": "a7c5de37a51f07663d55dc89733b27e4c39e9b0e85c52685a484281c43ef7170",
-      "bytes": 800368
+      "sha256": "dbb2f9d2f3d098fd265e455b559c22e7a472c676e15c9384deb9ae3256a029a9",
+      "bytes": 800332
     },
     "24120293_24120347_24120468.zip": {
-      "sha256": "54aa8720c5d27f7379fe8b7ad602deeda08d4474b68f55406583166fe0a31531",
-      "bytes": 1130303
+      "sha256": "8f0058c643fe818b6132d5bbe5928c40e800ece88082f7372798555e867a4549",
+      "bytes": 1130272
     }
   },
   "source_files": {
@@ -131,11 +131,11 @@
     "tests/dusizecheck.c": "818001d5a2360b0676e80b0ba96d8b6678c500d880d90b17e894a078342d1f45",
     "docs/report-source/Logo_Truong.png": "4fb92754801610cb32ffcc2f2c3a05ed15118168784d5b3936913c097803115f",
     "docs/report-source/README.txt": "2e955a39f945f81d30755562fc6d05a7b1a4127e8347c9c359d6900e950ceac6",
-    "docs/report-source/OS1Lab_Report.tex": "b9cb75d524b7ee3d5d10f6e987498131e04bc36db9f949ec60b34d26ca6846d7",
+    "docs/report-source/OS1Lab_Report.tex": "c5572391e012dd3f12cbdf4dfc3a47e5a593be346248a04fe77f48602abbcd83",
     "docs/report-validation/qemu-lab01-flow.txt": "0d95bf61d32c7a3bb31af74cc5ff2369f6a79aa431a7b5724b5707f48be98585",
-    "docs/report-validation/run-context.json": "29fb7a0d5b424d1ddf9d4c1e9ec0e7371f60a7565badf13a2b4c03c8765fd637",
-    "docs/report-validation/pdf-build.txt": "a23bb1c4c9dd9a590c6719357787dfb54fb9246e8a505e51e5495e6039dccad8",
-    "docs/report-validation/pdf-compiler.log": "fdfc9f5434b1e0ccd1df3e4c4d7eeab44e1050ef0ca15f68879efacd24cc279b",
+    "docs/report-validation/run-context.json": "97fde63d2219976ce29c03a058cf80728d9948cdc55e39334e3bbcf6f026dbf3",
+    "docs/report-validation/pdf-build.txt": "dfe265545d781b115052c099d61fdb3dc5deca0dabd46a6569a79046c60ef963",
+    "docs/report-validation/pdf-compiler.log": "be541aa20b0a0e12ad333a8bc018513f7578e2060e866cf136303e8953c70716",
     "docs/report-validation/build.txt": "0251b736e6c6007050e39bc0f689f9fae8571772b88dc5fa77932ec5d38c1548",
     "docs/report-validation/pdf-validation.txt": "cf6fef3068941b82e3eeb525d2df3d312523549787fdd1a41c749e79a8d8d669",
     "docs/report-validation/clean.txt": "daebc6b8caed8365952d1a3daa7adbece4b7b211b362088be0f6093ded618c8f",
@@ -148,7 +148,7 @@
     "docs/report-validation/pdf-validation.json": "e6a7854e4aebed46cdedb9006564e7bd8db40329d0ad9592394b02ddad73daa8",
     "docs/report-validation/qemu-lab01-du.txt": "1f8ec8bde9762025246e25ca471c105554f855c82e287d2f1964ba8962f2487d",
     "docs/report-validation/qemu-tv1.txt": "92691ef591cba4fbf894f61b1336f2cbc72af193ccebcc9fda7dde39a7054b84",
-    "docs/report-validation/README.md": "71b686acb2acb07ff2163982e9f9bda697afda283e78070f2571ab9e52fcb0dd",
+    "docs/report-validation/README.md": "b77634cc1d1800673cb751255be26e5071bfe5cdfa37db4e789f8da967f4b65c",
     "docs/report-validation/qemu-lab01-size.txt": "3e293b4f6d0e4f77fe9a9256f4e6fd924be88afd984b62496fa2c886f90c8fad",
     "docs/lab01/tv1-output.txt": "74d3fdd68a11e40a83f86864d43926d8d4c3ebc65255b904af220dd20fa7cab2",
     "docs/lab01/before-fixes.txt": "6c9bd83be4e005c50104efb0dbdc87afc07a24c31466f0bea048a0cb0458a83a",
@@ -163,9 +163,9 @@
     "docs/lab01/cp-output.txt": "90052f92365840d2834efed51409ceae656ed1026ea0abc9185d657f59e8c85d",
     "docs/lab01/resources-output.txt": "d0320fc166b7e1d045d1ebbf5baaca4dbfd28f23be027c22b0aa8789efef8de0",
     "docs/lab01/flow-output.txt": "06deb41c416da443cbdaec2d332de07cb8126011dd91f08071ebbb1339151d89",
-    "docs/submission/patch-build.txt": "ee6271b960dbc9f873951179a893296fd0ece569530dd68062b40f134350aef7",
+    "docs/submission/patch-build.txt": "e3a89ade6086d532cdb4cd45be9a432eb75b3dd4fddf6d4320eacdd4558d140e",
     "docs/submission/clean.txt": "daebc6b8caed8365952d1a3daa7adbece4b7b211b362088be0f6093ded618c8f",
-    "docs/submission/tests.txt": "2f4979825276703773c5ac3cf9421dcfb015bbe4ef7ff5cd130c9455cba61e54",
+    "docs/submission/tests.txt": "6a4e35ecfea89f056744cc068c88b061934b272869ccf13729b9b0aaed36426a",
     "docs/submission/README.txt": "d42b76da20926d00345560130ed6e5a5756b308e1d27f1a1412ef08c8048caf6",
     "docs/tv1/mit-tests.txt": "7466ab87f95df1bc5385a055e501281a34bd562122687d71c3b3fe7cadade5a2",
     "docs/tv1/functional-tests.txt": "641db79d1aa9c68fc836bc3049dce27eecf788009c734656cb302874830c0118",
@@ -200,7 +200,5 @@
     "docs/report-validation/upgrade/qemu.lab01.diff.txt": "bc5ba75451dd4089a14a7b83b56788dbc583468fd36484a4810628acebdc890d",
     "docs/report-validation/upgrade/qemu.lab01.du.txt": "4d25e8ba6ce5b679a367390fbbf6076a76db73d4687aa2185d9aa2b65a7945e9",
     "docs/report-validation/upgrade/qemu.lab01.size.txt": "3b47b9997d0cc3d9b04fb9f58b7b3f0ebea137d15b02865a281d61f720bf8ac7"
-  },
-  "report_source_rebuild_passed": true,
-  "source_archive_has_no_build_artifacts": true
+  }
 }
