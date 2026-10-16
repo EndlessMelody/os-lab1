@@ -56,7 +56,7 @@ nhận trên bìa được liệt kê riêng, không tự điền dữ liệu c�
 
 - Dương Nhựt Duy – 24120293: họ tên và MSSV được người dùng xác nhận ngày 16/10/2026;
   đã đồng bộ trên bìa, dòng tác giả, bảng đóng góp và metadata PDF.
-- Bìa đã cập nhật giảng viên Lê Viết Long, Phạm Tuấn Sơn; lớp CQ2024/22;
+- Bìa đã cập nhật giảng viên ThS. Lê Viết Long, ThS. Phạm Tuấn Sơn; lớp CQ2024/22;
   Phan Lê Đăng Khoa – 24120347; Âu Bảo Trân – 24120468; Dương Nhựt Duy – 24120293.
   Bỏ ngày nộp theo yêu cầu.
 - Bảng đóng góp dựa trên commit bàn giao và phân công trong khung;
@@ -148,6 +148,10 @@ tên tệp nộp: `24120293_24120347_24120468`.
 - Người dùng đã bổ sung `Logo_Truong.png`; TEX dùng đúng tên phân biệt
   chữ hoa/thường. PDF được biên dịch lại với logo trên bìa; validator
   kiểm tra hình đã được nhúng.
+- Bìa dùng hai cột thông tin: lớp bên trái, giảng viên bên phải; nội dung
+  đặt dưới từng nhãn và căn theo chiều rộng bảng thành viên. Đã giữ học vị
+  `ThS.` do người dùng cập nhật, biên dịch và kiểm tra lại PDF 12 trang;
+  nội dung từ mục lục trở đi không thay đổi.
 - Lượt này biên dịch và kiểm tra lại báo cáo; bằng chứng kiểm thử xv6 vẫn
   thuộc các lần chạy ngày 15/10/2026, không được đổi thành ngày chạy mới.
 

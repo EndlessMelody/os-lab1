@@ -37,14 +37,14 @@
     "compiler": "Tectonic 0.17.0",
     "pdf_pages": 12,
     "main_content_pages": 8,
-    "source_sha256": "b9cb75d524b7ee3d5d10f6e987498131e04bc36db9f949ec60b34d26ca6846d7",
-    "pdf_sha256": "9d723d8f61048b208abf06d5c86d3493c3661dbc754865df528f274389bc1d53",
+    "source_sha256": "c5572391e012dd3f12cbdf4dfc3a47e5a593be346248a04fe77f48602abbcd83",
+    "pdf_sha256": "9fbea1dcd6d6fc51246834b738f59ec05cd6e3fc9ee599055238d0a2ca4f828c",
     "cover_pending": [],
     "style": "Academic Vietnamese; consistent terminology; TeX Gyre Termes/Heros/Cursor; 12 pt; 1.1 line spacing; two vector log figures",
     "layout_checked_at": "2026-10-16",
     "upgrade_evidence": "docs/report-validation/upgrade",
     "figures_manifest": "docs/report-validation/figures/manifest.json",
-    "cover_alignment": "centered title, information blocks, member table and location",
+    "cover_alignment": "centered title and member table; class and supervisors in two left-aligned columns matching the table width",
     "identity_confirmed_at": "2026-10-16",
     "members": [
       {
