@@ -1,0 +1,22 @@
+*** Now run 'gdb' in another window.
+
+xv6 kernel is booting
+
+hart 2 starting
+hart 1 starting
+init: starting sh
+$ lab01check resources
+PASS: cp no descriptor available for source
+PASS: diff no descriptor available for first file
+PASS: tree no descriptor available for root
+PASS: du no descriptor available for root
+PASS: pingpong first pipe fails without hanging
+PASS: primes first pipe fails without hanging
+PASS: cp no descriptor available for destination
+PASS: diff second open fails cleanly
+PASS: tree child stat fails cleanly
+PASS: du child open fails cleanly
+PASS: pingpong second pipe fails without hanging
+PASS: primes filter pipe failure reaches generator
+LAB01_RESOURCES_OK: 12 cases
+$ qemu-system-riscv64: terminating on signal 15 from pid 4462 (make)

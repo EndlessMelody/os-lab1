@@ -1,0 +1,63 @@
+{
+  "kind": "typeset log excerpts; not window screenshots",
+  "generator": "tools/render-report-evidence.py",
+  "font": "texgyrecursor-regular.otf",
+  "figures": [
+    {
+      "name": "test-summary",
+      "source": "docs/report-validation/upgrade/tests.txt",
+      "source_sha256": "6878eb882af33a708fa467ea777eaf50be617cc1ce5948d03b6b235747eefd8b",
+      "selected_line_numbers": [
+        1,
+        10,
+        19,
+        20,
+        38,
+        64,
+        88,
+        108,
+        123,
+        127
+      ],
+      "selection": "filtered lines",
+      "text_sha256": "e495846abb489d51b71e1ece5b5a1394419a5110465a1842c587a6ba86dacaeb",
+      "pdf_sha256": "db049b3f4daf474621e70a2bbe5ad5b3be3700f99fa4b930be4a1b233aef2baa",
+      "font_size_pt": 9.5,
+      "size_pt": [
+        465,
+        154.1
+      ]
+    },
+    {
+      "name": "workflow",
+      "source": "docs/report-validation/upgrade/qemu.lab01.flow.txt",
+      "source_sha256": "82ca0f21b84c3fe5d94a781a0520869b7d1700a05fd4903c58d7adaea3fce036",
+      "selected_line_numbers": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "selection": "continuous excerpt",
+      "text_sha256": "08478de565113624993257ff91cdaecba53970aba31a9eee1597b35e018845de",
+      "pdf_sha256": "ec000fcc7efd671c47fa5684745eae89ba0908099abdd57cc91bbbebc214ac4e",
+      "font_size_pt": 9.5,
+      "size_pt": [
+        465,
+        221.36
+      ]
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+PASS: unique introduction and conclusion headings
+PASS: main content occupies 8 pages (target 7-8)
+PASS: cover and one contents page precede the main content
+PASS: no unresolved placeholders in main content
+PASS: references present
+PASS: last main-content page has the correct printed page number
+PASS: cover matches the user-confirmed names, class and student IDs
+PASS: the supplied university logo is embedded on the cover
+PASS: author name is consistent in the report and PDF metadata
+PASS: no unfilled personal information or drafting placeholders remain
+PASS: report includes sleep
+PASS: report includes pingpong
+PASS: report includes primes
+PASS: report includes cp
+PASS: report includes tree
+PASS: report includes du
+PASS: report includes diff
+PASS: no Unicode replacement characters
+PASS: no internal drafting instructions
+PASS: no unresolved LaTeX references
+PASS: academic abstract and keywords are present
+PASS: three evaluation questions are present
+PASS: PDF embeds the new Termes academic font instead of DejaVu
+PASS: all PDF fonts are embedded
+PASS: compiler reports no overflowing boxes or missing glyphs
+PASS: citations and references are resolved
+PASS: page 1 uses A4
+PASS: page 2 uses A4
+PASS: page 3 uses A4
+PASS: page 4 uses A4
+PASS: page 5 uses A4
+PASS: page 6 uses A4
+PASS: page 7 uses A4
+PASS: page 8 uses A4
+PASS: page 9 uses A4
+PASS: page 10 uses A4
+PASS: page 11 uses A4
+PASS: page 12 uses A4
+PASS: all text remains within page bounds and horizontal margins
+PASS: clean, build and test commands succeeded
+PASS: all 17 selected test groups ran
+PASS: TV1 and integrated scores match the report
+PASS: CP: 13 cases verified
+PASS: DIFF: 23 cases verified
+PASS: TREE: 21 cases verified
+PASS: DU: 17 cases verified
+PASS: RESOURCES: 12 cases verified
+PASS: integration transcript matches the actual QEMU output
+PASS: 64-bit formatting evidence matches the report
+PASS: fresh clean/build/test run succeeded on the documented commit
+PASS: all 17 freshly rerun test groups passed
+PASS: diff EOF example in the PDF matches the additional QEMU run
+PASS: both evidence figures have provenance records
+PASS: test-summary: figure and excerpt match the recorded log
+PASS: test-summary: complete excerpt is readable/selectable in the report
+PASS: test-summary: source text is at least 9 pt
+PASS: workflow: figure and excerpt match the recorded log
+PASS: workflow: complete excerpt is readable/selectable in the report
+PASS: workflow: source text is at least 9 pt
+PASS: both figures have numbered captions
+PASS: report source and PDF match the updated verification record
+Cover information awaiting the user: 0 distinct placeholders

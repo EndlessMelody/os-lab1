@@ -1,0 +1,71 @@
+{
+  "workspace": "/tmp/lab01-report-check-7wdr543e",
+  "evidence": "/home/melody/xv6-labs-2024/docs/report-validation",
+  "commit": "35ba531d8f28cb6400182b408e0676299386fcdb",
+  "runs": [
+    {
+      "name": "clean",
+      "command": [
+        "make",
+        "clean"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "build",
+      "command": [
+        "make",
+        "-j4",
+        "kernel/kernel",
+        "fs.img"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "tests",
+      "command": [
+        "make",
+        "check-lab01"
+      ],
+      "returncode": 0
+    }
+  ],
+  "checked_at": "2026-10-15",
+  "report": {
+    "source": "OS1Lab_Report.tex",
+    "pdf": "OS1Lab_Report.pdf",
+    "compiler": "Tectonic 0.17.0",
+    "pdf_pages": 12,
+    "main_content_pages": 8,
+    "source_sha256": "b9cb75d524b7ee3d5d10f6e987498131e04bc36db9f949ec60b34d26ca6846d7",
+    "pdf_sha256": "9d723d8f61048b208abf06d5c86d3493c3661dbc754865df528f274389bc1d53",
+    "cover_pending": [],
+    "style": "Academic Vietnamese; consistent terminology; TeX Gyre Termes/Heros/Cursor; 12 pt; 1.1 line spacing; two vector log figures",
+    "layout_checked_at": "2026-10-16",
+    "upgrade_evidence": "docs/report-validation/upgrade",
+    "figures_manifest": "docs/report-validation/figures/manifest.json",
+    "cover_alignment": "centered title, information blocks, member table and location",
+    "identity_confirmed_at": "2026-10-16",
+    "members": [
+      {
+        "name": "Phan Lê Đăng Khoa",
+        "student_id": "24120347"
+      },
+      {
+        "name": "Âu Bảo Trân",
+        "student_id": "24120468"
+      },
+      {
+        "name": "Dương Nhựt Duy",
+        "student_id": "24120293"
+      }
+    ],
+    "optional_assets_missing": [],
+    "logo": {
+      "path": "Logo_Truong.png",
+      "sha256": "4fb92754801610cb32ffcc2f2c3a05ed15118168784d5b3936913c097803115f",
+      "embedded": true
+    },
+    "draft_backups_archived_outside_workspace": true
+  }
+}

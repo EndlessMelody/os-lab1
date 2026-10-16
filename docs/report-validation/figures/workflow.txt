@@ -1,0 +1,16 @@
+$ mkdir demo
+$ echo hello > demo/a
+$ cp demo/a demo/b
+$ diff -q demo/a demo/b
+$ tree demo -L 1
+demo
+|-- a
+|-- b
+$ du demo -s
+12	demo
+$ sleep 0
+$ pingpong
+11: received ping
+10: received pong
+$ primes | wc
+59 118 561 

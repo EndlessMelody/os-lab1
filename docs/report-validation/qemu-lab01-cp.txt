@@ -1,0 +1,23 @@
+*** Now run 'gdb' in another window.
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ lab01check cp
+PASS: cp empty file
+PASS: cp small file
+PASS: cp binary file larger than buffer (8193 bytes)
+PASS: cp overwrite longer destination
+PASS: cp overwrite with empty file
+PASS: cp reject same path
+PASS: cp reject hard-link alias
+PASS: cp missing source
+PASS: cp reject source directory
+PASS: cp reject destination directory
+PASS: cp destination parent missing
+PASS: cp missing arguments
+PASS: cp extra arguments
+LAB01_CP_OK: 13 cases
+$ qemu-system-riscv64: terminating on signal 15 from pid 4764 (make)

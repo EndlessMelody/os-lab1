@@ -1,0 +1,44 @@
+{
+  "workspace": "/tmp/lab01-report-upgrade-b2ag47k5",
+  "commit": "35ba531d8f28cb6400182b408e0676299386fcdb",
+  "checked_at": "2026-10-15",
+  "timezone": "Asia/Bangkok",
+  "runs": [
+    {
+      "name": "clean",
+      "command": [
+        "make",
+        "clean"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "build",
+      "command": [
+        "make",
+        "-j4",
+        "kernel/kernel",
+        "fs.img"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "tests",
+      "command": [
+        "make",
+        "check-lab01"
+      ],
+      "returncode": 0
+    }
+  ],
+  "diff_example": {
+    "command": [
+      "make",
+      "-s",
+      "qemu"
+    ],
+    "returncode": 0,
+    "verified_output": "> f2:2: two",
+    "log": "diff-example.txt"
+  }
+}

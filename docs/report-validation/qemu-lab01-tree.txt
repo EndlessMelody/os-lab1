@@ -1,0 +1,31 @@
+*** Now run 'gdb' in another window.
+
+xv6 kernel is booting
+
+hart 2 starting
+hart 1 starting
+init: starting sh
+$ lab01check tree
+PASS: tree missing path gives nonzero status
+PASS: tree full hierarchy and 14-character names
+PASS: tree -L 1
+PASS: tree -L 2
+PASS: tree -L 0
+PASS: tree -d
+PASS: tree -d -L 1 with options before path
+PASS: tree empty directory
+PASS: tree file root
+PASS: tree trailing slash
+PASS: tree default path is current directory
+PASS: tree nonnumeric depth
+PASS: tree negative depth
+PASS: tree overflowing depth
+PASS: tree missing depth argument
+PASS: tree unknown option
+PASS: tree multiple paths
+PASS: tree oversized root path
+PASS: tree joined path exceeds MAXPATH
+PASS: tree deep recursion fails cleanly at FD limit
+PASS: tree depth limit avoids deep traversal
+LAB01_TREE_OK: 21 cases
+$ qemu-system-riscv64: terminating on signal 15 from pid 4886 (make)

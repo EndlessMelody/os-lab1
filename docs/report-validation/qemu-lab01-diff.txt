@@ -1,0 +1,33 @@
+*** Now run 'gdb' in another window.
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ lab01check diff
+PASS: diff empty files
+PASS: diff equal multiline files
+PASS: diff changed middle line
+PASS: diff second file ends first
+PASS: diff first file ends first
+PASS: diff empty against multiple lines
+PASS: diff -q before filenames, one message
+PASS: diff -q after filenames, one message
+PASS: diff -q equal files is silent
+PASS: diff equal final lines without newline
+PASS: diff detect missing final newline
+PASS: diff trailing empty line
+PASS: diff full long lines with change after byte 4096
+PASS: diff equal long lines
+PASS: diff equal lines containing NUL
+PASS: diff -q detects change beyond NUL
+PASS: diff missing first file
+PASS: diff missing second file
+PASS: diff reject directory
+PASS: diff missing arguments
+PASS: diff unknown option
+PASS: diff duplicate -q
+PASS: diff extra filename
+LAB01_DIFF_OK: 23 cases
+$ qemu-system-riscv64: terminating on signal 15 from pid 4819 (make)

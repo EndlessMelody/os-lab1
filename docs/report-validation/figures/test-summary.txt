@@ -1,0 +1,10 @@
+./grade-lab-util sleep pingpong primes
+./grade-tv1
+Score: 50/50
+./grade-lab01
+LAB01_CP_OK: 13 cases
+LAB01_DIFF_OK: 23 cases
+LAB01_TREE_OK: 21 cases
+LAB01_DU_OK: 17 cases
+LAB01_RESOURCES_OK: 12 cases
+Score: 70/70

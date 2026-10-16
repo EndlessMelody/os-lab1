@@ -1,0 +1,3051 @@
+diff --git a/Makefile b/Makefile
+index 74e454f..6d89950 100644
+--- a/Makefile
++++ b/Makefile
+@@ -168,6 +168,16 @@ $U/_forktest: $U/forktest.o $(ULIB)
+ 	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $U/_forktest $U/forktest.o $U/ulib.o $U/usys.o
+ 	$(OBJDUMP) -S $U/_forktest > $U/forktest.asm
+ 
++# Optional TV1 test helper; not installed in the normal filesystem.
++$U/_tv1check: tests/tv1check.o $(ULIB)
++	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $^
++
++$U/_lab01check: tests/lab01check.o $(ULIB)
++	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $^
++
++$U/_dusizecheck: tests/dusizecheck.o $(ULIB)
++	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $^
++
+ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
+ 	gcc $(XCFLAGS) -Werror -Wall -I. -o mkfs/mkfs mkfs/mkfs.c
+ 
+@@ -179,6 +189,8 @@ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
+ 
+ UPROGS=\
+ 	$U/_cat\
++	$U/_cp\
++	$U/_diff\
+ 	$U/_echo\
+ 	$U/_forktest\
+ 	$U/_grep\
+@@ -187,6 +199,9 @@ UPROGS=\
+ 	$U/_ln\
+ 	$U/_ls\
+ 	$U/_mkdir\
++	$U/_sleep\
++	$U/_pingpong\
++	$U/_primes\
+ 	$U/_rm\
+ 	$U/_sh\
+ 	$U/_stressfs\
+@@ -194,6 +209,8 @@ UPROGS=\
+ 	$U/_grind\
+ 	$U/_wc\
+ 	$U/_zombie\
++	$U/_tree\
++	$U/_du
+ 
+ 
+ 
+@@ -276,7 +293,7 @@ endif
+ fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
+ 	mkfs/mkfs fs.img README $(UEXTRA) $(UPROGS)
+ 
+--include kernel/*.d user/*.d
++-include kernel/*.d user/*.d tests/*.d
+ 
+ clean:
+ 	rm -rf *.tex *.dvi *.idx *.aux *.log *.ind *.ilg *.dSYM *.zip *.pcap \
+@@ -345,6 +362,11 @@ grade:
+           (echo "'make clean' failed.  HINT: Do you have another running instance of xv6?" && exit 1)
+ 	./grade-lab-$(LAB) $(GRADEFLAGS)
+ 
++check-lab01:
++	./grade-lab-util sleep pingpong primes
++	./grade-tv1
++	./grade-lab01
++
+ ##
+ ## FOR submissions
+ ##
+@@ -374,4 +396,4 @@ submit-check:
+ zipball: clean submit-check
+ 	git archive --verbose --format zip --output lab.zip HEAD
+ 
+-.PHONY: zipball clean grade submit-check
++.PHONY: zipball clean grade check-lab01 submit-check
+diff --git a/Task.md b/Task.md
+new file mode 100644
+index 0000000..09cf3a5
+--- /dev/null
++++ b/Task.md
+@@ -0,0 +1,245 @@
++# Phân công Lab 01 Xv6 User Programs và File System
++
++## 1. Mục tiêu và phạm vi
++
++Nhóm gồm 3 thành viên, thực hiện 7 chương trình `sleep`, `pingpong`, `primes`, `cp`, `tree`, `du`, `diff`; kiểm thử, viết báo cáo PDF và đóng gói bài nộp theo đề `CQ_Lab01.docx`.
++
++Môi trường đã lựa chọn: Ubuntu 24.04 trên WSL2, source `xv6-labs-2024`, nhánh gốc `util`, trình biên dịch RISC-V và QEMU. Đây là phương án môi trường của nhóm dựa trên tài liệu MIT được đề dẫn tới; nếu giảng viên cung cấp source riêng, nhóm cần đối chiếu trước khi tiếp tục.
++
++Tên TV1–TV3 là placeholder để thay bằng tên và MSSV thực tế. Chưa có deadline cụ thể, vì vậy tiến độ được chia theo mốc bàn giao.
++
++## 2. Bảng phân công tổng thể
++
++| Thành viên | Họ tên và MSSV | Chương trình | File phụ trách | Trách nhiệm chung |
++|---|---|---|---|---|
++| TV1 | Đăng Khoa | `sleep`, `pingpong`, `primes` | `user/sleep.c`, `user/pingpong.c`, `user/primes.c` | Tích hợp `Makefile`, ghép source, build bản chung và đóng gói bài nộp |
++| TV2 | Bảo Trân | `cp`, `diff` | `user/cp.c`, `user/diff.c` | Tổng hợp và biên tập báo cáo PDF |
++| TV3 | Nhựt Duy | `tree`, `du` | `user/tree.c`, `user/du.c` | Tổng hợp checklist kiểm thử chung và kết quả kiểm thử chéo |
++
++TV1 có 3 chương trình nhưng `sleep` ngắn; phần chính là quản lý tiến trình và pipeline của `primes`. TV2 tập trung vào đọc/ghi và xử lý dữ liệu file. TV3 tập trung vào duyệt thư mục và đệ quy. Mỗi người chịu trách nhiệm cả code, kiểm thử và giải thích giải pháp của phần mình.
++
++## 3. Công việc của TV1
++
++### T1.1 — Chương trình sleep
++
++**File:** `user/sleep.c` · **Cú pháp:** `sleep ticks`
++
++- [x] Kiểm tra đối số; thiếu đối số phải in lỗi.
++- [x] Dùng `atoi` để chuyển chuỗi sang số ticks.
++- [x] Gọi system call `sleep` của xv6.
++- [x] Kết thúc thành công bằng `exit(0)`.
++- [x] Kiểm thử `sleep 10`, `sleep 0` và gọi `sleep` không có đối số.
++
++**Hoàn thành khi:** chương trình chờ theo ticks, trả lại shell và báo lỗi đúng khi thiếu đối số. Nhóm có thể bổ sung kiểm tra chuỗi không hợp lệ/số âm, nhưng không thay thế các yêu cầu bắt buộc trên.
++
++### T1.2 — Chương trình pingpong
++
++**File:** `user/pingpong.c` · **Cú pháp:** `pingpong`
++
++- [x] Tạo 2 pipe, mỗi pipe phục vụ một chiều trao đổi.
++- [x] Dùng `fork` để tạo tiến trình con.
++- [x] Cha gửi 1 byte; con đọc và in `<pid>: received ping`.
++- [x] Con gửi lại 1 byte; cha đọc và in `<pid>: received pong`.
++- [x] Đóng các đầu pipe không sử dụng trong cả cha và con.
++- [x] Cha chờ con kết thúc; xử lý lỗi syscall cần thiết.
++- [x] Kiểm thử nhiều lần, xác nhận không treo và luôn in ping trước pong.
++
++**Hoàn thành khi:** trao đổi đúng 1 byte mỗi chiều, PID đúng tiến trình và cả hai kết thúc. Không hardcode PID theo output mẫu.
++
++### T1.3 — Chương trình primes
++
++**File:** `user/primes.c` · **Cú pháp:** `primes`
++
++- [x] Tiến trình đầu phát các số nguyên từ 2 đến 280.
++- [x] Xây sàng dạng pipeline bằng `pipe` và `fork`; mỗi số nguyên tố tương ứng một tiến trình lọc.
++- [x] Truyền số nguyên 4 byte qua pipe; in `prime <number>`.
++- [x] Chỉ tạo tầng lọc mới khi còn dữ liệu cần xử lý.
++- [x] Đóng FD không cần thiết để EOF truyền được và không cạn tài nguyên.
++- [x] Mỗi tầng chờ tiến trình con; tiến trình chính chỉ thoát khi toàn bộ pipeline hoàn tất.
++- [x] Đối chiếu danh sách kết quả với danh sách số nguyên tố độc lập trong khoảng 2–280.
++- [x] Kiểm thử lặp lại, xác nhận không thiếu/trùng số và không treo sau dòng cuối.
++
++**Hoàn thành khi:** triển khai đúng pipeline concurrent, không dùng một tiến trình đơn thay cho yêu cầu; in đủ số nguyên tố và trở lại shell.
++
++### T1.4 — Tích hợp và đóng gói
++
++**Bản tích hợp:** nhánh `util` đã ghép đủ 3 nhánh thành viên. Xem `docs/lab01/README.md`, `make check-lab01` và `tools/package-lab01.py`. Gói source/patch kỹ thuật đã sẵn sàng cho viết báo cáo; gói nộp cuối còn chờ PDF, MSSV và xác nhận của cả nhóm.
++
++- [x] Ghi lại commit gốc trên nhánh `util` làm baseline cho cả nhóm. Hash: `79e8024d61c3dd92ccf064fc67bb99cb999f70ab` (xem `docs/tv1/BASELINE`).
++- [x] Thêm đủ 7 chương trình vào `UPROGS` trong `Makefile`.
++- [x] Ghép các phần bàn giao, build và chạy trên source chung.
++- [x] Sinh patch so với baseline; kiểm tra patch chứa cả các file mới.
++- [x] Chạy `make clean` trước khi tạo ZIP source cuối cùng.
++- [ ] Đóng gói đúng tên và cấu trúc đề yêu cầu; chuyển cả nhóm kiểm tra trước khi nộp.
++
++## 4. Công việc của TV2
++
++### T2.1 — Chương trình cp
++
++**File:** `user/cp.c` · **Cú pháp:** `cp src dst`
++
++- [x] Kiểm tra số đối số và in hướng dẫn sử dụng khi sai.
++- [x] Mở nguồn read-only; mở đích để ghi, tạo mới hoặc ghi đè.
++- [x] Copy theo buffer, ví dụ 512 hoặc 1024 bytes.
++- [x] Bảo đảm ghi đủ dữ liệu đọc được; xử lý trường hợp ghi chưa đủ buffer.
++- [x] Khi ghi đè file dài bằng file ngắn, không để dữ liệu cũ ở cuối file đích.
++- [x] Báo lỗi mở/đọc/ghi; đóng FD trong cả nhánh thành công và nhánh lỗi.
++- [x] Kiểm thử file rỗng, file nhỏ, file lớn hơn buffer, nguồn không tồn tại và ghi đè.
++
++**Hoàn thành khi:** nội dung và kích thước file đích khớp nguồn; lỗi được báo rõ. Nhóm nên bổ sung kiểm tra nguồn và đích cùng file trước khi truncate để tránh mất dữ liệu.
++
++### T2.2 — Chương trình diff
++
++**File:** `user/diff.c` · **Cú pháp:** `diff file1 file2 [-q]`
++
++- [x] Đọc hai file theo từng dòng và so sánh bằng xử lý chuỗi phù hợp.
++- [x] Dòng giống nhau không được in; hai file giống hệt thì không in gì.
++- [x] Dòng khác nhau: nội dung file1 có tiền tố `<`, nội dung file2 có tiền tố `>`.
++- [x] Ghi tên file và số dòng theo format thống nhất của nhóm.
++- [x] Nếu một file EOF trước, tiếp tục xử lý phần còn lại của file kia.
++- [x] Với `-q`, chỉ in `diff: files differ` một lần nếu có khác biệt.
++- [x] Hỗ trợ cả `diff f1 f2 -q` và `diff -q f1 f2`, vì đề có hai cách viết.
++- [x] Không cắt dòng dài một cách im lặng; chọn cách xử lý rõ ràng và ghi giới hạn nếu còn hạn chế.
++- [x] Kiểm thử file rỗng, hai file giống nhau, khác giữa file, khác số dòng, dòng dài và dòng cuối không có newline.
++
++**Hoàn thành khi:** đáp ứng so sánh theo vị trí dòng ở mức cơ bản của đề. Không cần triển khai thuật toán tìm chuỗi con chung dài nhất hoặc diff tối ưu như GNU diff.
++
++### T2.3 — Báo cáo chung
++
++- [ ] Nhận nội dung giải pháp và kiểm thử từ TV1, TV3.
++- [ ] Viết phần `cp`, `diff` và tổng hợp thành báo cáo ngắn gọn.
++- [ ] Nêu khó khăn, giới hạn, yêu cầu chưa hoàn thành nếu có.
++- [ ] Giữ cách dùng thuật ngữ và format nhất quán; không đưa toàn bộ source code vào báo cáo.
++- [ ] Xuất PDF, kiểm tra hiển thị và gửi cả nhóm duyệt nội dung kỹ thuật.
++
++## 5. Công việc của TV3
++
++### T3.1 — Chương trình tree
++
++**File:** `user/tree.c` · **Cú pháp:** `tree [path] [-L depth] [-d]`
++
++- [x] Dùng `.` làm path mặc định.
++- [x] Duyệt thư mục bằng `open`/`read`, dùng `fstat` để phân biệt loại entry.
++- [x] Duyệt đệ quy nhưng bỏ qua `.` và `..`.
++- [x] In path gốc và cấu trúc con bằng một style cố định.
++- [x] Với `-L 1`, chỉ in gốc và các mục con trực tiếp.
++- [x] Với `-d`, chỉ in thư mục.
++- [x] Kiểm tra đối số, giới hạn đường dẫn và lỗi mở/đọc; đóng FD đầy đủ.
++- [x] Kiểm thử thư mục rỗng, cây nhiều cấp, path sai, `-L 1`, `-L 2`, `-d`, kết hợp `-L` và `-d`.
++
++**Hoàn thành khi:** cây đúng độ sâu và đúng bộ lọc, không lặp vô hạn. Nhóm chọn dùng khoảng trắng thụt lề theo cấp cho bản cơ bản; style này được đề cho phép.
++
++### T3.2 — Chương trình du
++
++**File:** `user/du.c` · **Cú pháp:** `du [path] [-a] [-s]`
++
++- [x] Dùng `.` làm path mặc định; duyệt đệ quy và bỏ `.`/`..`.
++- [x] Lấy dung lượng file từ `st.size`, đơn vị bytes.
++- [x] Cộng dồn dung lượng các file trong toàn bộ cây con.
++- [x] Mặc định chỉ in thư mục; `-a` in cả file và thư mục.
++- [x] Với `-s`, chỉ in tổng của path được chọn.
++- [x] Dùng format `<bytes>\t<path>`; chọn kiểu số đủ lớn cho tổng dung lượng.
++- [x] Đóng FD, kiểm tra giới hạn đường dẫn và báo lỗi truy cập rõ ràng.
++- [x] Kiểm thử thư mục rỗng, một file, cây nhiều cấp, `-a`, `-s` và kết hợp hai option.
++
++**Hoàn thành khi:** tổng đúng dữ liệu thực tế và quy ước nhất quán. Quy ước nội bộ: không cộng `st.size` của bản thân thư mục; thư mục rỗng có tổng 0; khi có cả `-a` và `-s`, `-s` ưu tiên và chỉ in tổng.
++
++**Lưu ý kiểm thử:** số bytes minh họa trong đề có chỗ không khớp nội dung file mẫu. Dùng kích thước thực tế làm căn cứ; không hardcode số mẫu. Không mặc định `echo` trong xv6 hỗ trợ `-e` như một số shell Linux.
++
++### T3.3 — Tổng hợp kiểm thử
++
++- [ ] Thu danh sách test và kết quả từ cả ba thành viên.
++- [x] Tổng hợp test bắt buộc, test biên và các lỗi còn mở. Xem `docs/lab01/README.md` và log tích hợp.
++- [ ] Theo dõi kiểm thử chéo; chỉ đánh dấu đạt khi có kết quả thực tế.
++- [x] Viết phần `tree`, `du`, giải thích quy ước dung lượng và kết quả kiểm thử. Có ghi chú kỹ thuật để ghép vào báo cáo trong `docs/lab01/README.md`.
++
++## 6. Quy ước chung trước khi viết code
++
++| Nội dung | Quy ước nội bộ |
++|---|---|
++| Branch làm việc | TV1: `lab01-process`; TV2: `lab01-files`; TV3: `lab01-directories` |
++| Baseline | Cùng một commit gốc của `util`; lưu hash hoặc tag chung trước khi sửa |
++| Phạm vi sửa | Mỗi người sửa file được giao; thay đổi file chung phải báo TV1 để tích hợp |
++| Makefile | TV1 quản lý bản chung; TV2/TV3 bàn giao danh sách entry cần thêm, có thể thêm tạm ở nhánh riêng để tự test |
++| Kernel | Không sửa kernel nếu chưa có lý do và thống nhất của nhóm |
++| Header và thư viện | Dùng API trong source xv6; không giả định có đầy đủ libc của Linux |
++| Lỗi | In ra stderr bằng API xv6, nêu tên chương trình và lý do |
++| Exit status | Thông thường: 0 thành công, 1 lỗi; riêng `diff`: 0 giống, 1 khác, 2 lỗi thực thi |
++| Tài nguyên | Đóng FD và chờ tiến trình con khi cần, kể cả nhánh lỗi |
++| Build | Chạy trong terminal Ubuntu/WSL ở thư mục repo |
++| Chạy chương trình | Chạy trong shell xv6 sau `make qemu` |
++| Kiểm thử MIT | Dùng cho phần tương ứng có sẵn; không coi `make grade` là kiểm tra đủ 7 bài của môn |
++
++Các quy ước trên là lựa chọn của nhóm, không phải tất cả đều là yêu cầu bắt buộc của đề. Nếu test của giảng viên quy định format hoặc exit status cụ thể, ưu tiên quy định đó.
++
++## 7. Mốc triển khai và bàn giao
++
++| Mốc | TV1 | TV2 | TV3 | Điều kiện chuyển mốc |
++|---|---|---|---|---|
++| M1 — Chốt môi trường | Chốt baseline và kiểm tra build | Chạy được source gốc | Chạy được source gốc | Cả nhóm cùng source và khởi động được xv6 |
++| M2 — Code và tự test | Hoàn thành nhóm process | Hoàn thành nhóm file | Hoàn thành nhóm thư mục | Mỗi chương trình có source và kết quả tự test |
++| M3 — Ghép và review | Tích hợp source/Makefile; review phần TV2 | Review phần TV3 | Review phần TV1; tổng hợp lỗi | Bản chung build được, các lỗi chính đã sửa |
++| M4 — Báo cáo và đóng gói | Tạo patch/source ZIP và gói cuối | Hoàn thiện report PDF | Chốt checklist kiểm thử | Cả nhóm duyệt đủ code, test, report và ZIP |
++
++**Kiểm thử chéo:** TV1 kiểm tra `cp`/`diff`; TV2 kiểm tra `tree`/`du`; TV3 kiểm tra `sleep`/`pingpong`/`primes`. Người review báo lỗi với lệnh tái hiện và kết quả mong đợi; người phụ trách sửa và chạy lại test liên quan.
++
++### Nội dung mỗi người phải bàn giao
++
++- Source đã commit trong nhánh riêng và hash commit bàn giao.
++- Danh sách chương trình/entry cần thêm vào `UPROGS`.
++- Lệnh tạo dữ liệu, lệnh chạy test, kết quả mong đợi và kết quả thực tế.
++- Giải thích ngắn về thuật toán, syscall sử dụng và quản lý tài nguyên.
++- Danh sách giới hạn hoặc lỗi chưa xử lý, nếu có.
++- Nội dung phần báo cáo của mình.
++
++## 8. Checklist nghiệm thu và nộp bài
++
++- [x] Bản chung build thành công, khởi động được và có đủ 7 chương trình.
++- [x] Các test chức năng và trường hợp biên đã được chạy trên bản chung.
++- [x] `pingpong`/`primes` không treo; file/thư mục được xử lý đúng quy ước.
++- [ ] Báo cáo có bảng đóng góp từng người, giải pháp, kết quả test và giới hạn thực tế.
++- [ ] PDF ngắn gọn, đọc được, không chứa toàn bộ mã nguồn.
++- [x] Patch được tạo so với baseline và chứa đầy đủ file mới/thay đổi cần nộp. File mới phải được Git theo dõi trước khi sinh patch; chỉ dùng `git diff` sau commit có thể làm thiếu phần đã commit.
++- [x] Thử áp patch lên một bản source sạch cùng baseline và kiểm tra build.
++- [x] Source được chạy `make clean` trước khi ZIP. Hoàn tất lưu bằng chứng test trước bước này vì ảnh filesystem có thể bị tạo lại ở lần build sau.
++- [ ] Tên ZIP và report dùng MSSV theo thứ tự tăng dần, không dùng TV1–TV3.
++- [ ] Cả nhóm kiểm tra nội dung gói cuối; nộp trên MOODLE.
++
++### Cấu trúc gói nộp
++
++Với nhóm 3 người, dùng `StudentID1 < StudentID2 < StudentID3`:
++
++```text
++StudentID1_StudentID2_StudentID3.zip
++  StudentID1_StudentID2_StudentID3_Report.pdf
++  Realease/
++    StudentID1_StudentID2_StudentID3.patch
++  Source/
++    xv6-labs-2024.zip
++```
++
++Giữ cách viết `Realease` theo đề gốc; đối chiếu hướng dẫn nộp trên MOODLE nếu giảng viên có cập nhật cấu trúc.
++
++## 9. Bảng theo dõi công việc
++
++| Task | Owner | Code | Tự test | Review chéo | Báo cáo | Ghi chú |
++|---|---|---|---|---|---|---|
++| sleep | TV1 | Hoàn thành | Hoàn thành | Đã review tích hợp; chờ TV3 xác nhận | Có nội dung kỹ thuật | `docs/lab01/README.md` và log |
++| pingpong | TV1 | Hoàn thành | Hoàn thành | Đã review tích hợp; chờ TV3 xác nhận | Có nội dung kỹ thuật | 50 lần chạy liên tiếp; test thiếu FD |
++| primes | TV1 | Hoàn thành | Hoàn thành | Đã review tích hợp; chờ TV3 xác nhận | Có nội dung kỹ thuật | 20 lần, đủ 59 số; test lỗi tầng pipe |
++| cp | TV2 | Hoàn thành | Hoàn thành trên bản chung | Đã review tích hợp; chờ TV1 xác nhận | Có nội dung kỹ thuật | 13 case chức năng và lỗi FD |
++| diff | TV2 | Hoàn thành | Hoàn thành trên bản chung | Đã review tích hợp; chờ TV1 xác nhận | Có nội dung kỹ thuật | 23 case; -q hai vị trí, dòng dài, newline |
++| tree | TV3 | Hoàn thành | Hoàn thành trên bản chung | Đã review tích hợp; chờ TV2 xác nhận | Có nội dung kỹ thuật | 21 case; sửa tên 14 byte, path và mã lỗi |
++| du | TV3 | Hoàn thành | Hoàn thành trên bản chung | Đã review tích hợp; chờ TV2 xác nhận | Có nội dung kỹ thuật | 17 case; tổng 64 bit và mã lỗi |
++| Tích hợp và đóng gói | TV1 | Hoàn thành phần code | Hoàn thành | Chờ cả nhóm xác nhận | Không áp dụng | Đủ 7 chương trình trên util; patch/source sạch; gói cuối chờ PDF và MSSV |
++| Tổng hợp report PDF | TV2 | Không áp dụng | Không áp dụng | Cả nhóm | Chờ viết PDF | Nội dung kỹ thuật và minh chứng: docs/lab01 |
++| Tổng hợp test | TV3 | Không áp dụng | Có bộ test và log tích hợp | Chờ cả nhóm xác nhận | Có ma trận test | make check-lab01; docs/lab01 |
++
++Trạng thái đề xuất: `Chưa làm`, `Đang làm`, `Chờ review`, `Cần sửa`, `Hoàn thành`.
++
++## 10. Tài liệu tham khảo
++
++- Đề bài: `CQ_Lab01.docx` do nhóm cung cấp.
++- Lab MIT được đề tham khảo: https://pdos.csail.mit.edu/6.1810/2024/labs/util.html
++- Hướng dẫn công cụ: https://pdos.csail.mit.edu/6.1810/2024/tools.html
++- Source sử dụng: `git://g.csail.mit.edu/xv6-labs-2024`, nhánh `util`.
+diff --git a/docs/lab01/README.md b/docs/lab01/README.md
+new file mode 100644
+index 0000000..c228aa5
+--- /dev/null
++++ b/docs/lab01/README.md
+@@ -0,0 +1,155 @@
++# Lab 01 — Bản tích hợp để chuyển sang viết báo cáo
++
++Nhánh tích hợp: `util`. Ngày kiểm tra: 12/10/2026.
++Phạm vi nghiệm thu code là 7 chương trình trong `Task.md`:
++`sleep`, `pingpong`, `primes`, `cp`, `diff`, `tree`, `du`.
++
++## Source đã tích hợp
++
++| Thành viên | Nhánh | Commit bàn giao | Chương trình |
++|---|---|---|---|
++| Đăng Khoa | `lab01-process` | `a577dd503a839b68c71699704b6280baeb60052d` | sleep, pingpong, primes |
++| Bảo Trân | `lab01-files` | `bf5cc3aba87b7082a1d72349b9968148c3afea38` | cp, diff |
++| Nhựt Duy | `lab01-directories` | `6d9d56abc57b082cc8d712f11e4db0798610813b` | tree, du |
++
++Baseline chung: `79e8024d61c3dd92ccf064fc67bb99cb999f70ab`.
++Hai nhánh TV2/TV3 được merge với lịch sử commit riêng, không chép đè
++hoặc thay tác giả các phần bàn giao. Cả 7 entry có trong `UPROGS`.
++Không sửa kernel hoặc script MIT `grade-lab-util`.
++
++## Lỗi phát hiện và sửa khi tích hợp
++
++- Bản đầu `tree` và `du` báo lỗi path không tồn tại nhưng vẫn `exit(0)`.
++  Đã tái hiện bằng test chạy trong xv6; xem `before-fixes.txt`.
++  Bản sửa truyền lỗi duyệt cây về `main` và trả mã 1.
++- `dirent.name` của xv6 chỉ có 14 byte, có thể không có ký tự kết thúc.
++  Đã chép sang buffer 15 byte và thêm NUL trước khi so sánh/in/nối path.
++- Bổ sung kiểm tra `MAXPATH` cả ở đối số gốc và khi nối từng entry;
++  phát hiện lỗi `stat`, đọc thư mục và thiếu FD, đóng FD đầy đủ.
++- `tree -L` kiểm tra chuỗi số, số âm và tràn số; thêm kiểm tra nhiều path.
++  `-L 0` chỉ in gốc; `-L 1` chỉ thêm con trực tiếp.
++- `du` cộng bằng `uint64` và in bằng chuyển đổi thập phân 64 bit.
++  `printf` có sẵn trong source này vẫn ép `%lu` về 32 bit nên chỉ đổi
++  format từ `%d` sang `%lu` không sửa được lỗi. Test gọi formatter thật
++  với 0, 4294967296 và 18446744073709551615.
++- Khi duyệt lỗi, `du -s` không in một tổng thiếu như kết quả thành công.
++- Giữ thuật toán của `cp`/`diff`; thống nhất tiền tố lỗi usage và chuẩn
++  hóa newline/indentation ở chỗ cần thiết.
++
++## Lệnh kiểm tra lại
++
++Tại terminal Linux ở thư mục repo:
++
++```sh
++make clean
++make -j4 kernel/kernel fs.img
++make check-lab01
++```
++
++`make check-lab01` chạy lần lượt:
++
++```sh
++./grade-lab-util sleep pingpong primes
++./grade-tv1
++./grade-lab01
++```
++
++Script custom dùng `gradelib.py` của repo và helper C chạy thật trong
++xv6 để tạo dữ liệu, bắt stdout/stderr, chờ tiến trình và kiểm tra mã thoát.
++`grade-lab01` tạo lại `fs.img` cho từng nhóm test; cần lưu dữ liệu thử tay
++trước khi chạy. Các helper không nằm trong `UPROGS` của filesystem chuẩn.
++
++## Ma trận kiểm thử cho báo cáo
++
++| Nhóm | Nội dung | Kết quả |
++|---|---|---|
++| Build sạch | Kernel, filesystem và đủ 7 chương trình; `-Wall -Werror` | Đạt |
++| MIT tương ứng phần process | 5 test sleep/pingpong/primes, có breakpoint `sys_sleep` | Đạt |
++| TV1 | 5 nhóm, 50/50 điểm custom; argv, mã thoát, `uptime`, pipeline | Đạt |
++| pingpong | 50 lần, 2 PID khác nhau, ping trước pong, trở lại shell | Đạt |
++| primes | 20 lần, so sánh đủ 59 số bằng phép chia thử độc lập, có 277 | Đạt |
++| cp | 13 case: rỗng, nhỏ, nhị phân 8193 byte, overwrite, same inode, lỗi argv/path | Đạt |
++| diff | 23 case: bằng/khác, EOF hai phía, 2 kiểu `-q`, newline, dòng 4098 byte, NUL, lỗi | Đạt |
++| tree | 21 case: mặc định, cây nhiều cấp, -L 0/1/2, -d, tên 14 byte, path/FD/argv | Đạt |
++| du | 17 case: tổng bytes, -a/-s, rỗng, file gốc, tên 14 byte, path/FD/argv | Đạt |
++| Thiếu FD | 12 case: mở nguồn/đích, pipe thứ nhất/thứ hai, lỗi tầng primes | Đạt |
++| Formatter du | 3 giá trị biên, gồm 2^32 và UINT64_MAX | Đạt |
++| Luồng chung | echo → cp → diff → tree/du, sleep, pingpong, primes qua wc | Đạt |
++
++`grade-lab01` có 7 nhóm, tổng 70/70 điểm custom. Các nhóm native gồm
++86 case; test formatter và luồng shell được chấm riêng. Đây là điểm của
++bộ test nội bộ, không phải điểm chính thức của giảng viên.
++
++Log cuối cùng nằm trong `all-tests.txt`; log build/clean trong `build.txt`,
++`clean.txt`. Các file `*-output.txt` lưu output QEMU theo nhóm. Không dùng
++`make grade` toàn bộ MIT để kết luận bài này: `find`, `xargs`, `time` nằm
++ngoài 7 chương trình được phân công và chưa được triển khai trong Lab 01
++của nhóm. Kiểm tra tích hợp bằng công cụ không thay thế việc các thành
++viên tự đọc và xác nhận phần kiểm thử chéo.
++
++## Quy ước và giới hạn cần ghi trong báo cáo
++
++- `diff` so sánh các dòng cùng vị trí, không tìm phép chèn/xóa tối ưu như
++  GNU diff; in `< tên-file:số-dòng:` / `> tên-file:số-dòng:`.
++  Dòng cuối thiếu newline có thông báo riêng. Mã thoát: 0 bằng, 1 khác,
++  2 lỗi. Dòng dài được tăng buffer động, lỗi cấp phát được báo rõ.
++- `tree` dùng `|--` và `|   `, theo thứ tự entry trên đĩa, không sắp xếp.
++  Chỉ nhận một path; option có thể đứng trước hoặc sau path.
++- `du` tính tổng `st.size` của file, không cộng metadata thư mục; thư mục
++  rỗng bằng 0, `-s` ưu tiên `-a`. Mặc định chỉ in thư mục; nếu path gốc
++  là file thì dùng `-a` hoặc `-s` để in. Hard link được tính theo từng
++  entry, không khử trùng inode. Device được tính 0 byte.
++- Path phải ngắn hơn `MAXPATH` (128 byte gồm NUL). Duyệt đệ quy giữ một
++  FD cho mỗi thư mục tổ tiên; cây quá sâu có thể chạm `NOFILE=16`.
++  Lúc đó chương trình báo lỗi và trả 1. Test cây sâu 20 cấp kiểm tra
++  thất bại có kiểm soát; không tuyên bố hỗ trợ thành công độ sâu này.
++- `tree` và `du` có thể đã in các nhánh duyệt được trước khi gặp lỗi.
++  `du -s` không in tổng khi có bất kỳ lỗi duyệt nào.
++- `primes` giữ phạm vi 2–280 do giới hạn tài nguyên process/FD của xv6.
++- Đã kiểm thử cạn FD và một số lỗi pipe; chưa cưỡng bức mọi lỗi `fork`,
++  cấp phát bộ nhớ hoặc ổ đĩa đầy. Không tuyên bố bộ test là vét cạn.
++
++## Ghi chú giải pháp để viết báo cáo
++
++Phần `sleep`, `pingpong`, `primes`: dùng nội dung giải thích syscall và
++quản lý pipe/process trong `docs/tv1/README.md` (tài liệu bàn giao TV1
++trước tích hợp).
++
++`cp` mở nguồn read-only, kiểm tra file thường và so inode/dev với đích
++trước truncate. Đích được tạo hoặc truncate; dữ liệu được đọc theo buffer
++1024 byte. Vòng lặp ghi tiếp đến khi ghi đủ số byte đã đọc. Nhánh lỗi và
++thành công đều đóng các FD đã mở.
++
++`diff` đọc mỗi file theo từng dòng, giữ cả newline và chiều dài. Buffer
++được tăng gấp đôi khi cần; so sánh theo byte nên xử lý cả NUL trong dòng.
++Hai file được đọc đến EOF; chỉ in phía còn dữ liệu khi file kia kết thúc
++trước. `-q` dừng ở khác biệt đầu tiên và chỉ in một thông báo.
++
++`tree` đọc entry thư mục bằng `open`/`read`, bỏ `.` và `..`, dùng thông
++tin stat để lọc và quyết định đệ quy. Cấp hiện tại quyết định thụt lề và
++giới hạn `-L`; `-d` bỏ file khỏi output. Mã lỗi từ nhánh con được truyền
++lên gốc.
++
++`du` duyệt hậu thứ tự: tính từng cây con, cộng tổng rồi in thư mục cha.
++Chỉ cộng kích thước file thường. Dùng biến `uint64` để chứa tổng; bộ in
++thập phân riêng giữ đủ 64 bit. Tham số trả về phân biệt tổng dung lượng
++với tình trạng lỗi, tránh coi một lần mở thất bại là thư mục 0 byte.
++
++## Bàn giao sang giai đoạn báo cáo
++
++Code đã tích hợp và có kiểm thử tái chạy bằng một lệnh. Sau khi commit,
++tạo lại patch và source sạch bằng:
++
++```sh
++python3 tools/package-lab01.py
++```
++
++Script áp patch vào baseline sạch, build, `make clean`, so sánh từng file
++với commit rồi tạo `submissions/lab01/Lab01-code-handoff.zip`.
++Đây là gói kỹ thuật để viết báo cáo, chưa phải gói nộp MOODLE cuối cùng.
++
++Việc còn lại: điền MSSV, hoàn thiện báo cáo PDF có bảng đóng góp, giải
++pháp, ảnh/log minh chứng, khó khăn và giới hạn; cả nhóm xác nhận nội dung;
++đặt tên PDF/ZIP theo MSSV tăng dần và kiểm tra cấu trúc đề gốc.
++`CQ_Lab01.docx` chưa có trong repo nên chưa đối chiếu các yêu cầu nằm
++ngoài `Task.md`.
+diff --git a/docs/lab01/all-tests.txt b/docs/lab01/all-tests.txt
+new file mode 100644
+index 0000000..51a854f
+--- /dev/null
++++ b/docs/lab01/all-tests.txt
+@@ -0,0 +1,127 @@
++./grade-lab-util sleep pingpong primes
++make[1]: Entering directory '/home/melody/xv6-labs-2024'
++make[1]: 'kernel/kernel' is up to date.
++make[1]: Leaving directory '/home/melody/xv6-labs-2024'
++== Test sleep, no arguments == sleep, no arguments: OK (1.6s)
++== Test sleep, returns == sleep, returns: OK (1.0s)
++== Test sleep, makes syscall == sleep, makes syscall: OK (1.2s)
++== Test pingpong == pingpong: OK (1.0s)
++== Test primes == primes: OK (2.2s)
++./grade-tv1
++make[1]: Entering directory '/home/melody/xv6-labs-2024'
++make[1]: 'kernel/kernel' is up to date.
++make[1]: Leaving directory '/home/melody/xv6-labs-2024'
++== Test TV1 sleep arguments and return to shell == TV1 sleep arguments and return to shell: OK (1.1s)
++== Test TV1 pingpong repeated 50 times == TV1 pingpong repeated 50 times: OK (2.8s)
++== Test TV1 primes exact output, repeated 20 times == TV1 primes exact output, repeated 20 times: OK (20.7s)
++== Test TV1 programs used in shell pipelines == TV1 programs used in shell pipelines: OK (1.9s)
++== Test TV1 exit statuses and elapsed xv6 ticks == TV1 exit statuses and elapsed xv6 ticks: OK (3.5s)
++Score: 50/50
++./grade-lab01
++make[1]: Entering directory '/home/melody/xv6-labs-2024'
++make[1]: 'kernel/kernel' is up to date.
++make[1]: Leaving directory '/home/melody/xv6-labs-2024'
++== Test Lab01 cp contents, overwrite, same inode and errors ==
++PASS: cp empty file
++PASS: cp small file
++PASS: cp binary file larger than buffer (8193 bytes)
++PASS: cp overwrite longer destination
++PASS: cp overwrite with empty file
++PASS: cp reject same path
++PASS: cp reject hard-link alias
++PASS: cp missing source
++PASS: cp reject source directory
++PASS: cp reject destination directory
++PASS: cp destination parent missing
++PASS: cp missing arguments
++PASS: cp extra arguments
++LAB01_CP_OK: 13 cases
++Lab01 cp contents, overwrite, same inode and errors: OK (16.1s)
++== Test Lab01 diff lines, quiet mode, long lines and errors ==
++PASS: diff empty files
++PASS: diff equal multiline files
++PASS: diff changed middle line
++PASS: diff second file ends first
++PASS: diff first file ends first
++PASS: diff empty against multiple lines
++PASS: diff -q before filenames, one message
++PASS: diff -q after filenames, one message
++PASS: diff -q equal files is silent
++PASS: diff equal final lines without newline
++PASS: diff detect missing final newline
++PASS: diff trailing empty line
++PASS: diff full long lines with change after byte 4096
++PASS: diff equal long lines
++PASS: diff equal lines containing NUL
++PASS: diff -q detects change beyond NUL
++PASS: diff missing first file
++PASS: diff missing second file
++PASS: diff reject directory
++PASS: diff missing arguments
++PASS: diff unknown option
++PASS: diff duplicate -q
++PASS: diff extra filename
++LAB01_DIFF_OK: 23 cases
++Lab01 diff lines, quiet mode, long lines and errors: OK (18.1s)
++== Test Lab01 tree depth, filters, paths and errors ==
++PASS: tree missing path gives nonzero status
++PASS: tree full hierarchy and 14-character names
++PASS: tree -L 1
++PASS: tree -L 2
++PASS: tree -L 0
++PASS: tree -d
++PASS: tree -d -L 1 with options before path
++PASS: tree empty directory
++PASS: tree file root
++PASS: tree trailing slash
++PASS: tree default path is current directory
++PASS: tree nonnumeric depth
++PASS: tree negative depth
++PASS: tree overflowing depth
++PASS: tree missing depth argument
++PASS: tree unknown option
++PASS: tree multiple paths
++PASS: tree oversized root path
++PASS: tree joined path exceeds MAXPATH
++PASS: tree deep recursion fails cleanly at FD limit
++PASS: tree depth limit avoids deep traversal
++LAB01_TREE_OK: 21 cases
++Lab01 tree depth, filters, paths and errors: OK (29.5s)
++== Test Lab01 du byte totals, options, paths and errors ==
++PASS: du missing path gives nonzero status
++PASS: du directory totals exclude directory metadata
++PASS: du -a includes every file with exact byte sizes
++PASS: du -s only root total
++PASS: du -a -s gives summary priority
++PASS: du empty directory is zero
++PASS: du file root without -a is silent
++PASS: du -a file root
++PASS: du -s file root
++PASS: du trailing slash
++PASS: du default path is current directory
++PASS: du unknown option
++PASS: du multiple paths
++PASS: du oversized root path
++PASS: du joined path exceeds MAXPATH
++PASS: du -s reports traversal error
++PASS: du deep recursion fails cleanly at FD limit
++LAB01_DU_OK: 17 cases
++Lab01 du byte totals, options, paths and errors: OK (21.4s)
++== Test Lab01 descriptor exhaustion and pipe failure cleanup ==
++PASS: cp no descriptor available for source
++PASS: diff no descriptor available for first file
++PASS: tree no descriptor available for root
++PASS: du no descriptor available for root
++PASS: pingpong first pipe fails without hanging
++PASS: primes first pipe fails without hanging
++PASS: cp no descriptor available for destination
++PASS: diff second open fails cleanly
++PASS: tree child stat fails cleanly
++PASS: du child open fails cleanly
++PASS: pingpong second pipe fails without hanging
++PASS: primes filter pipe failure reaches generator
++LAB01_RESOURCES_OK: 12 cases
++Lab01 descriptor exhaustion and pipe failure cleanup: OK (13.8s)
++== Test Lab01 du full 64-bit size formatting == Lab01 du full 64-bit size formatting: OK (1.2s)
++== Test Lab01 complete seven-program shell workflow == Lab01 complete seven-program shell workflow: OK (2.0s)
++Score: 70/70
+diff --git a/docs/lab01/before-fixes.txt b/docs/lab01/before-fixes.txt
+new file mode 100644
+index 0000000..2b6cdc2
+--- /dev/null
++++ b/docs/lab01/before-fixes.txt
+@@ -0,0 +1,23 @@
++/home/melody/xv6-labs-2024/./grade-lab01:19: SyntaxWarning: invalid escape sequence '\('
++  no=['FAIL:', 'panic:', 'usertrap\(', 'exec .* failed'])
++make: 'kernel/kernel' is up to date.
++== Test Lab01 tree depth, filters, paths and errors == Lab01 tree depth, filters, paths and errors: FAIL (6.1s)
++    ...
++         hart 1 starting
++         init: starting sh
++         $ lab01check tree
++    BAD  FAIL: tree exit status: expected 1, got 0
++         $ qemu-system-riscv64: terminating on signal 15 from pid 11347 (make)
++    unexpected lines in output
++    MISSING '^LAB01_TREE_OK: [0-9]+ cases$'
++    QEMU output saved to xv6.out.lab01.tree.tree
++== Test Lab01 du byte totals, options, paths and errors == Lab01 du byte totals, options, paths and errors: FAIL (7.6s)
++    ...
++         hart 1 starting
++         init: starting sh
++         $ lab01check du
++    BAD  FAIL: du exit status: expected 1, got 0
++         $ qemu-system-riscv64: terminating on signal 15 from pid 11408 (make)
++    unexpected lines in output
++    MISSING '^LAB01_DU_OK: [0-9]+ cases$'
++    QEMU output saved to xv6.out.lab01.du.du
+diff --git a/docs/lab01/build.txt b/docs/lab01/build.txt
+new file mode 100644
+index 0000000..367cf8d
+--- /dev/null
++++ b/docs/lab01/build.txt
+@@ -0,0 +1,140 @@
++riscv64-linux-gnu-gcc    -c -o kernel/entry.o kernel/entry.S
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/kalloc.o kernel/kalloc.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/string.o kernel/string.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/main.o kernel/main.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/vm.o kernel/vm.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/proc.o kernel/proc.c
++riscv64-linux-gnu-gcc    -c -o kernel/swtch.o kernel/swtch.S
++riscv64-linux-gnu-gcc    -c -o kernel/trampoline.o kernel/trampoline.S
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/trap.o kernel/trap.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/syscall.o kernel/syscall.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/sysproc.o kernel/sysproc.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/bio.o kernel/bio.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/fs.o kernel/fs.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/log.o kernel/log.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/sleeplock.o kernel/sleeplock.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/file.o kernel/file.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/pipe.o kernel/pipe.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/exec.o kernel/exec.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/sysfile.o kernel/sysfile.c
++riscv64-linux-gnu-gcc    -c -o kernel/kernelvec.o kernel/kernelvec.S
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/plic.o kernel/plic.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/virtio_disk.o kernel/virtio_disk.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/start.o kernel/start.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/console.o kernel/console.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/printf.o kernel/printf.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/uart.o kernel/uart.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie  -c -o kernel/spinlock.o kernel/spinlock.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie -march=rv64g -nostdinc -I. -Ikernel -c user/initcode.S -o user/initcode.o
++gcc -DSOL_UTIL -DLAB_UTIL -Werror -Wall -I. -o mkfs/mkfs mkfs/mkfs.c
++riscv64-linux-gnu-ld -z max-page-size=4096 -N -e start -Ttext 0 -o user/initcode.out user/initcode.o
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/ulib.o user/ulib.c
++perl user/usys.pl > user/usys.S
++riscv64-linux-gnu-ld: warning: user/initcode.out has a LOAD segment with RWX permissions
++riscv64-linux-gnu-objcopy -S -O binary user/initcode.out user/initcode
++riscv64-linux-gnu-objdump -S user/initcode.o > user/initcode.asm
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/printf.o user/printf.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/umalloc.o user/umalloc.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/cat.o user/cat.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/cp.o user/cp.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/diff.o user/diff.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/echo.o user/echo.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/forktest.o user/forktest.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/grep.o user/grep.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/init.o user/init.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/kill.o user/kill.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/ln.o user/ln.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/ls.o user/ls.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/mkdir.o user/mkdir.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/sleep.o user/sleep.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/pingpong.o user/pingpong.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/primes.o user/primes.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/rm.o user/rm.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/sh.o user/sh.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/stressfs.o user/stressfs.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/usertests.o user/usertests.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/grind.o user/grind.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/wc.o user/wc.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/zombie.o user/zombie.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/tree.o user/tree.c
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie   -c -o user/du.o user/du.c
++riscv64-linux-gnu-ld -z max-page-size=4096 -T kernel/kernel.ld -o kernel/kernel kernel/entry.o kernel/kalloc.o kernel/string.o kernel/main.o kernel/vm.o kernel/proc.o kernel/swtch.o kernel/trampoline.o kernel/trap.o kernel/syscall.o kernel/sysproc.o kernel/bio.o kernel/fs.o kernel/log.o kernel/sleeplock.o kernel/file.o kernel/pipe.o kernel/exec.o kernel/sysfile.o kernel/kernelvec.o kernel/plic.o kernel/virtio_disk.o kernel/start.o kernel/console.o kernel/printf.o kernel/uart.o kernel/spinlock.o
++riscv64-linux-gnu-ld: warning: kernel/kernel has a LOAD segment with RWX permissions
++riscv64-linux-gnu-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -DSOL_UTIL -DLAB_UTIL -MD -mcmodel=medany -fno-common -nostdlib -fno-builtin-strncpy -fno-builtin-strncmp -fno-builtin-strlen -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp -fno-builtin-log -fno-builtin-bzero -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc -fno-builtin-free -fno-builtin-memcpy -Wno-main -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf -I. -fno-stack-protector -fno-pie -no-pie -c -o user/usys.o user/usys.S
++riscv64-linux-gnu-objdump -S kernel/kernel > kernel/kernel.asm
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_cat user/cat.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_cp user/cp.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -S user/_cat > user/cat.asm
++riscv64-linux-gnu-objdump -S user/_cp > user/cp.asm
++riscv64-linux-gnu-objdump -t user/_cat | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/cat.sym
++riscv64-linux-gnu-objdump -t user/_cp | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/cp.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_diff user/diff.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_echo user/echo.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -t kernel/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > kernel/kernel.sym
++riscv64-linux-gnu-objdump -S user/_diff > user/diff.asm
++riscv64-linux-gnu-objdump -S user/_echo > user/echo.asm
++# forktest has less library code linked in - needs to be small
++# in order to be able to max out the proc table.
++riscv64-linux-gnu-ld -z max-page-size=4096 -N -e main -Ttext 0 -o user/_forktest user/forktest.o user/ulib.o user/usys.o
++riscv64-linux-gnu-objdump -t user/_diff | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/diff.sym
++riscv64-linux-gnu-ld: warning: user/_forktest has a LOAD segment with RWX permissions
++riscv64-linux-gnu-objdump -t user/_echo | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/echo.sym
++riscv64-linux-gnu-objdump -S user/_forktest > user/forktest.asm
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_grep user/grep.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_init user/init.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_kill user/kill.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -S user/_grep > user/grep.asm
++riscv64-linux-gnu-objdump -S user/_init > user/init.asm
++riscv64-linux-gnu-objdump -S user/_kill > user/kill.asm
++riscv64-linux-gnu-objdump -t user/_grep | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/grep.sym
++riscv64-linux-gnu-objdump -t user/_init | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/init.sym
++riscv64-linux-gnu-objdump -t user/_kill | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/kill.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_ln user/ln.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_ls user/ls.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_mkdir user/mkdir.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -S user/_ln > user/ln.asm
++riscv64-linux-gnu-objdump -S user/_ls > user/ls.asm
++riscv64-linux-gnu-objdump -S user/_mkdir > user/mkdir.asm
++riscv64-linux-gnu-objdump -t user/_ln | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/ln.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_sleep user/sleep.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -t user/_ls | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/ls.sym
++riscv64-linux-gnu-objdump -t user/_mkdir | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/mkdir.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_pingpong user/pingpong.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_primes user/primes.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -S user/_sleep > user/sleep.asm
++riscv64-linux-gnu-objdump -S user/_pingpong > user/pingpong.asm
++riscv64-linux-gnu-objdump -S user/_primes > user/primes.asm
++riscv64-linux-gnu-objdump -t user/_sleep | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/sleep.sym
++riscv64-linux-gnu-objdump -t user/_pingpong | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/pingpong.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_rm user/rm.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -t user/_primes | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/primes.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_sh user/sh.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -S user/_rm > user/rm.asm
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_stressfs user/stressfs.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -S user/_sh > user/sh.asm
++riscv64-linux-gnu-objdump -S user/_stressfs > user/stressfs.asm
++riscv64-linux-gnu-objdump -t user/_rm | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/rm.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_grind user/grind.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -t user/_stressfs | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/stressfs.sym
++riscv64-linux-gnu-objdump -t user/_sh | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/sh.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_wc user/wc.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_zombie user/zombie.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -S user/_grind > user/grind.asm
++riscv64-linux-gnu-objdump -S user/_wc > user/wc.asm
++riscv64-linux-gnu-objdump -S user/_zombie > user/zombie.asm
++riscv64-linux-gnu-objdump -t user/_wc | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/wc.sym
++riscv64-linux-gnu-objdump -t user/_grind | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/grind.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_tree user/tree.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -t user/_zombie | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/zombie.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_du user/du.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -S user/_tree > user/tree.asm
++riscv64-linux-gnu-objdump -S user/_du > user/du.asm
++riscv64-linux-gnu-objdump -t user/_tree | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/tree.sym
++riscv64-linux-gnu-objdump -t user/_du | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/du.sym
++riscv64-linux-gnu-ld -z max-page-size=4096 -T user/user.ld -o user/_usertests user/usertests.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
++riscv64-linux-gnu-objdump -S user/_usertests > user/usertests.asm
++riscv64-linux-gnu-objdump -t user/_usertests | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/usertests.sym
++mkfs/mkfs fs.img README user/xargstest.sh user/_cat user/_cp user/_diff user/_echo user/_forktest user/_grep user/_init user/_kill user/_ln user/_ls user/_mkdir user/_sleep user/_pingpong user/_primes user/_rm user/_sh user/_stressfs user/_usertests user/_grind user/_wc user/_zombie user/_tree user/_du
++nmeta 46 (boot, super, log blocks 30 inode blocks 13, bitmap blocks 1) blocks 1954 total 2000
++balloc: first 1045 blocks have been allocated
++balloc: write bitmap block at sector 45
+diff --git a/docs/lab01/clean.txt b/docs/lab01/clean.txt
+new file mode 100644
+index 0000000..af9e34a
+--- /dev/null
++++ b/docs/lab01/clean.txt
+@@ -0,0 +1,6 @@
++rm -rf *.tex *.dvi *.idx *.aux *.log *.ind *.ilg *.dSYM *.zip *.pcap \
++*/*.o */*.d */*.asm */*.sym \
++user/initcode user/initcode.out user/usys.S user/_* \
++kernel/kernel \
++mkfs/mkfs fs.img .gdbinit __pycache__ xv6.out* \
++ph barrier
+diff --git a/docs/lab01/cp-output.txt b/docs/lab01/cp-output.txt
+new file mode 100644
+index 0000000..8747e1a
+--- /dev/null
++++ b/docs/lab01/cp-output.txt
+@@ -0,0 +1,23 @@
++*** Now run 'gdb' in another window.
++
++xv6 kernel is booting
++
++hart 2 starting
++hart 1 starting
++init: starting sh
++$ lab01check cp
++PASS: cp empty file
++PASS: cp small file
++PASS: cp binary file larger than buffer (8193 bytes)
++PASS: cp overwrite longer destination
++PASS: cp overwrite with empty file
++PASS: cp reject same path
++PASS: cp reject hard-link alias
++PASS: cp missing source
++PASS: cp reject source directory
++PASS: cp reject destination directory
++PASS: cp destination parent missing
++PASS: cp missing arguments
++PASS: cp extra arguments
++LAB01_CP_OK: 13 cases
++$ qemu-system-riscv64: terminating on signal 15 from pid 15494 (make)
+diff --git a/docs/lab01/diff-output.txt b/docs/lab01/diff-output.txt
+new file mode 100644
+index 0000000..8dd6aa0
+--- /dev/null
++++ b/docs/lab01/diff-output.txt
+@@ -0,0 +1,33 @@
++*** Now run 'gdb' in another window.
++
++xv6 kernel is booting
++
++hart 1 starting
++hart 2 starting
++init: starting sh
++$ lab01check diff
++PASS: diff empty files
++PASS: diff equal multiline files
++PASS: diff changed middle line
++PASS: diff second file ends first
++PASS: diff first file ends first
++PASS: diff empty against multiple lines
++PASS: diff -q before filenames, one message
++PASS: diff -q after filenames, one message
++PASS: diff -q equal files is silent
++PASS: diff equal final lines without newline
++PASS: diff detect missing final newline
++PASS: diff trailing empty line
++PASS: diff full long lines with change after byte 4096
++PASS: diff equal long lines
++PASS: diff equal lines containing NUL
++PASS: diff -q detects change beyond NUL
++PASS: diff missing first file
++PASS: diff missing second file
++PASS: diff reject directory
++PASS: diff missing arguments
++PASS: diff unknown option
++PASS: diff duplicate -q
++PASS: diff extra filename
++LAB01_DIFF_OK: 23 cases
++$ qemu-system-riscv64: terminating on signal 15 from pid 15601 (make)
+diff --git a/docs/lab01/du-output.txt b/docs/lab01/du-output.txt
+new file mode 100644
+index 0000000..2353df9
+--- /dev/null
++++ b/docs/lab01/du-output.txt
+@@ -0,0 +1,27 @@
++*** Now run 'gdb' in another window.
++
++xv6 kernel is booting
++
++hart 1 starting
++hart 2 starting
++init: starting sh
++$ lab01check du
++PASS: du missing path gives nonzero status
++PASS: du directory totals exclude directory metadata
++PASS: du -a includes every file with exact byte sizes
++PASS: du -s only root total
++PASS: du -a -s gives summary priority
++PASS: du empty directory is zero
++PASS: du file root without -a is silent
++PASS: du -a file root
++PASS: du -s file root
++PASS: du trailing slash
++PASS: du default path is current directory
++PASS: du unknown option
++PASS: du multiple paths
++PASS: du oversized root path
++PASS: du joined path exceeds MAXPATH
++PASS: du -s reports traversal error
++PASS: du deep recursion fails cleanly at FD limit
++LAB01_DU_OK: 17 cases
++$ qemu-system-riscv64: terminating on signal 15 from pid 15827 (make)
+diff --git a/docs/lab01/flow-output.txt b/docs/lab01/flow-output.txt
+new file mode 100644
+index 0000000..af5b77c
+--- /dev/null
++++ b/docs/lab01/flow-output.txt
+@@ -0,0 +1,26 @@
++*** Now run 'gdb' in another window.
++
++xv6 kernel is booting
++
++hart 1 starting
++hart 2 starting
++init: starting sh
++$ mkdir demo
++$ echo hello > demo/a
++$ cp demo/a demo/b
++$ diff -q demo/a demo/b
++$ tree demo -L 1
++demo
++|-- a
++|-- b
++$ du demo -s
++12	demo
++$ sleep 0
++$ pingpong
++11: received ping
++10: received pong
++$ primes | wc
++59 118 561
++$ echo LAB01_FLOW_OK
++LAB01_FLOW_OK
++$ qemu-system-riscv64: terminating on signal 15 from pid 16081 (make)
+diff --git a/docs/lab01/resources-output.txt b/docs/lab01/resources-output.txt
+new file mode 100644
+index 0000000..29bc9ed
+--- /dev/null
++++ b/docs/lab01/resources-output.txt
+@@ -0,0 +1,22 @@
++*** Now run 'gdb' in another window.
++
++xv6 kernel is booting
++
++hart 1 starting
++hart 2 starting
++init: starting sh
++$ lab01check resources
++PASS: cp no descriptor available for source
++PASS: diff no descriptor available for first file
++PASS: tree no descriptor available for root
++PASS: du no descriptor available for root
++PASS: pingpong first pipe fails without hanging
++PASS: primes first pipe fails without hanging
++PASS: cp no descriptor available for destination
++PASS: diff second open fails cleanly
++PASS: tree child stat fails cleanly
++PASS: du child open fails cleanly
++PASS: pingpong second pipe fails without hanging
++PASS: primes filter pipe failure reaches generator
++LAB01_RESOURCES_OK: 12 cases
++$ qemu-system-riscv64: terminating on signal 15 from pid 15945 (make)
+diff --git a/docs/lab01/size-output.txt b/docs/lab01/size-output.txt
+new file mode 100644
+index 0000000..7a2d917
+--- /dev/null
++++ b/docs/lab01/size-output.txt
+@@ -0,0 +1,12 @@
++*** Now run 'gdb' in another window.
++
++xv6 kernel is booting
++
++hart 1 starting
++hart 2 starting
++init: starting sh
++$ dusizecheck
++0	zero
++4294967296	wide
++18446744073709551615	maximum
++$ qemu-system-riscv64: terminating on signal 15 from pid 16050 (make)
+diff --git a/docs/lab01/tree-output.txt b/docs/lab01/tree-output.txt
+new file mode 100644
+index 0000000..c8c9a32
+--- /dev/null
++++ b/docs/lab01/tree-output.txt
+@@ -0,0 +1,31 @@
++*** Now run 'gdb' in another window.
++
++xv6 kernel is booting
++
++hart 1 starting
++hart 2 starting
++init: starting sh
++$ lab01check tree
++PASS: tree missing path gives nonzero status
++PASS: tree full hierarchy and 14-character names
++PASS: tree -L 1
++PASS: tree -L 2
++PASS: tree -L 0
++PASS: tree -d
++PASS: tree -d -L 1 with options before path
++PASS: tree empty directory
++PASS: tree file root
++PASS: tree trailing slash
++PASS: tree default path is current directory
++PASS: tree nonnumeric depth
++PASS: tree negative depth
++PASS: tree overflowing depth
++PASS: tree missing depth argument
++PASS: tree unknown option
++PASS: tree multiple paths
++PASS: tree oversized root path
++PASS: tree joined path exceeds MAXPATH
++PASS: tree deep recursion fails cleanly at FD limit
++PASS: tree depth limit avoids deep traversal
++LAB01_TREE_OK: 21 cases
++$ qemu-system-riscv64: terminating on signal 15 from pid 15699 (make)
+diff --git a/docs/lab01/tv1-output.txt b/docs/lab01/tv1-output.txt
+new file mode 100644
+index 0000000..225d7ba
+--- /dev/null
++++ b/docs/lab01/tv1-output.txt
+@@ -0,0 +1,80 @@
++*** Now run 'gdb' in another window.
++
++xv6 kernel is booting
++
++hart 1 starting
++hart 2 starting
++init: starting sh
++$ tv1check
++sleep 10: 10 ticks elapsed
++sleep: usage: sleep ticks
++sleep: ticks must be an integer from 0 to 2147483647
++sleep: ticks must be an integer from 0 to 2147483647
++sleep: ticks must be an integer from 0 to 2147483647
++sleep: ticks must be a non-negative integer
++sleep: usage: sleep ticks
++13: received ping
++12: received pong
++prime 2
++prime 3
++prime 5
++prime 7
++prime 11
++prime 13
++prime 17
++prime 19
++prime 23
++prime 29
++prime 31
++prime 37
++prime 41
++prime 43
++prime 47
++prime 53
++prime 59
++prime 61
++prime 67
++prime 71
++prime 73
++prime 79
++prime 83
++prime 89
++prime 97
++prime 101
++prime 103
++prime 107
++prime 109
++prime 113
++prime 127
++prime 131
++prime 137
++prime 139
++prime 149
++prime 151
++prime 157
++prime 163
++prime 167
++prime 173
++prime 179
++prime 181
++prime 191
++prime 193
++prime 197
++prime 199
++prime 211
++prime 223
++prime 227
++prime 229
++prime 233
++prime 239
++prime 241
++prime 251
++prime 257
++prime 263
++prime 269
++prime 271
++prime 277
++pingpong: usage: pingpong
++primes: usage: primes
++TV1_STATUS_OK
++$ qemu-system-riscv64: terminating on signal 15 from pid 15396 (make)
+diff --git a/docs/tv1/BASELINE b/docs/tv1/BASELINE
+new file mode 100644
+index 0000000..40f637a
+--- /dev/null
++++ b/docs/tv1/BASELINE
+@@ -0,0 +1 @@
++79e8024d61c3dd92ccf064fc67bb99cb999f70ab
+diff --git a/docs/tv1/README.md b/docs/tv1/README.md
+new file mode 100644
+index 0000000..dca5f6a
+--- /dev/null
++++ b/docs/tv1/README.md
+@@ -0,0 +1,134 @@
++# Bàn giao TV1 — Đăng Khoa
++
++Phạm vi: `sleep`, `pingpong`, `primes` và chuẩn bị tích hợp. `cp`, `diff`
++thuộc TV2; `tree`, `du` thuộc TV3. Đây là bản bàn giao TV1, chưa phải gói
++nộp cuối của nhóm. Ngày kiểm thử: 12/10/2026.
++
++## Source và môi trường
++
++- Nhánh làm việc: `lab01-process`.
++- Baseline `util`: `79e8024d61c3dd92ccf064fc67bb99cb999f70ab`
++  (lưu trong `BASELINE`).
++- Commit bàn giao: xem `git log -1 --oneline` hoặc `HANDOFF.txt` trong gói ZIP.
++- Công cụ đã dùng: `riscv64-linux-gnu-gcc`, `qemu-system-riscv64`, Python 3.12.
++- Source chương trình: `user/sleep.c`, `user/pingpong.c`, `user/primes.c`.
++- Entry đã thêm vào `UPROGS`: `$U/_sleep`, `$U/_pingpong`, `$U/_primes`.
++- Giữ nguyên kernel và script chấm MIT `grade-lab-util`.
++
++## Nội dung giải pháp để đưa vào báo cáo
++
++### sleep
++
++Chương trình nhận đúng một đối số là số ticks. Trước khi gọi `atoi`, chương
++trình kiểm tra chuỗi chỉ chứa chữ số và giá trị không vượt giới hạn của số
++nguyên có dấu 32 bit. Sau đó gọi system call `sleep(ticks)` và `exit(0)` khi
++thành công. Thiếu/thừa đối số, số âm, chuỗi rỗng, ký tự không hợp lệ hoặc
++số vượt 2147483647 đều được báo trên stderr và kết thúc với mã 1.
++
++Ticks là đơn vị đồng hồ của kernel, không phải số giây. `sleep 0` không yêu
++cầu chờ một tick mới. Kiểm thử dùng `uptime()` để đo số ticks khi chạy
++`sleep 10`, đồng thời test MIT kiểm tra chương trình đi vào `sys_sleep`.
++
++### pingpong
++
++Hai pipe tạo hai chiều liên lạc: `tochild` đưa dữ liệu từ cha đến con,
++`toparent` đưa dữ liệu từ con về cha. Sau `fork`, mỗi tiến trình đóng hai
++đầu pipe không dùng. Cha gửi một byte; con đọc byte đó, in PID của chính
++nó cùng `received ping`, rồi gửi lại byte. Cha nhận byte trả về và in PID
++của mình cùng `received pong`.
++
++Con in trước khi gửi byte trả về nên dòng ping xuất hiện trước dòng pong.
++PID được lấy bằng `getpid()`. Các đầu pipe được đóng sau khi sử dụng;
++cha gọi `wait` và kiểm tra mã thoát của con. Các lỗi `pipe`, `fork`, `read`
++và `write` đều có nhánh báo lỗi và giải phóng tài nguyên đã tạo.
++
++### primes
++
++Tiến trình phát ghi lần lượt các số từ 2 đến 280 qua pipe bằng
++`write(..., sizeof(int))`; trên xv6 này, mỗi số nguyên chiếm 4 byte.
++Tiến trình lọc đọc số đầu tiên làm số nguyên tố `p` và in `prime p`.
++Những số chia hết cho `p` bị loại; những số còn lại được gửi đến tầng sau.
++
++Chỉ khi tìm được một số không chia hết cho `p`, tầng hiện tại mới tạo
++pipe và tiến trình con. Con trở thành tầng lọc kế tiếp bằng cách đổi FD
++đầu vào rồi tiếp tục vòng lặp. Cách này vẫn tạo một tiến trình cho mỗi số
++nguyên tố, đồng thời không làm tăng độ sâu ngăn xếp như gọi hàm đệ quy.
++Cha gửi số đã tìm được và lọc tiếp phần dữ liệu còn lại.
++
++Sau khi đọc hết đầu vào, mỗi tầng đóng FD đọc và FD ghi sang tầng sau,
++rồi mới `wait` con. Việc đóng đầu ghi cho phép tầng sau nhận EOF;
++chuỗi `wait` bảo đảm tiến trình phát chỉ kết thúc sau toàn bộ pipeline.
++Lỗi của tầng con được truyền ngược bằng mã thoát. Kết quả có 59 số nguyên
++tố, bắt đầu bằng 2 và kết thúc bằng 277.
++
++## Kiểm thử thực tế
++
++Chạy từ terminal Linux tại thư mục repo:
++
++```sh
++make -j4 kernel/kernel fs.img
++./grade-lab-util sleep pingpong primes
++./grade-tv1
++make qemu
++```
++
++Trong shell xv6 có thể thử `sleep 10`, `sleep 0`, `sleep`, `pingpong`,
++`primes`. Thoát QEMU bằng Ctrl-a rồi x.
++
++| Kiểm thử | Kết quả |
++|---|---|
++| Build với `-Wall -Werror` | Đạt |
++| 5 test MIT tương ứng `sleep`, `pingpong`, `primes` | Đạt |
++| `sleep`: thiếu/thừa đối số, số âm, chữ, số vượt giới hạn | Đạt |
++| `sleep 0`, `sleep 10`: trả lại shell | Đạt |
++| `pingpong` 50 lần: đúng 2 dòng/lần, PID khác nhau, ping trước pong | Đạt |
++| `primes` 20 lần: so sánh toàn bộ kết quả bằng phép chia thử độc lập | Đạt |
++| `primes` không thiếu/trùng số, có cả 277, trả lại shell | Đạt |
++| `primes \| wc`, `pingpong \| cat` | Đạt |
++| Mã thoát và số ticks của `sleep 10` qua helper chạy trong xv6 | Đạt, đo được 10 ticks |
++
++`mit-tests.txt` và `functional-tests.txt` lưu kết quả chạy thật.
++`status-output.txt` lưu output helper kiểm tra `wait(&status)` và
++`uptime()`. Helper nằm ở `tests/tv1check.c`; `grade-tv1` tự build và đưa
++nó vào filesystem kiểm thử, không thêm nó vào `UPROGS` của bản nộp.
++
++Không chạy toàn bộ `make grade` để đánh giá bài môn học này: script MIT
++còn chấm `find`, `xargs` và `time`, không thuộc phần phân công TV1.
++Các test bổ sung không thay thế kiểm thử chéo của TV3.
++
++## Tạo và kiểm tra gói bàn giao
++
++Sau khi commit source và tài liệu, chạy:
++
++```sh
++python3 tools/package-tv1.py
++```
++
++Script tạo patch so với baseline bằng `git diff BASELINE HEAD`, nên có
++cả file mới đã commit. Nó áp patch lên bản baseline sạch, build kernel
++và filesystem, chạy `make clean` trên bản đó rồi mới tạo ZIP source.
++Thư mục làm việc chính được giữ để tiếp tục phát triển.
++
++Kết quả ở `submissions/tv1/`: `TV1.patch`, `xv6-labs-2024.zip`,
++`verify-build.txt`, `HANDOFF.txt`, `TV1-handoff.zip`. `submissions/`
++được repo bỏ qua trong Git. Đây là tên gói bàn giao nội bộ.
++
++## Phần còn lại khi tích hợp cả nhóm
++
++1. Nhận source và commit bàn giao của TV2/TV3, thêm `$U/_cp`, `$U/_diff`,
++   `$U/_tree`, `$U/_du` vào `UPROGS` khi có đủ source. Hiện chưa thêm
++   các entry này vì chúng chưa tồn tại và sẽ làm build thất bại.
++2. TV1 kiểm thử chéo `cp`/`diff`; TV3 kiểm thử chéo ba chương trình TV1.
++3. Build và chạy lại đủ 7 chương trình trên bản chung; gửi nội dung giải
++   pháp và log trong thư mục này cho TV2 để ghép báo cáo PDF.
++4. Tạo lại patch và source ZIP từ commit đã tích hợp, áp patch và build
++   lại trên baseline sạch. Gói TV1 hiện tại chỉ chứa phần TV1.
++5. Điền ba MSSV theo thứ tự tăng dần để đặt tên gói cuối và report.
++   Dùng cấu trúc `Realease/`, `Source/` theo `Task.md`, kiểm tra lại đề
++   `CQ_Lab01.docx` và hướng dẫn MOODLE trước khi nộp.
++
++Giới hạn: phạm vi sàng cố định 2–280; tài nguyên process/FD của xv6 có
++hạn nên không tự ý tăng giới hạn này. Các nhánh lỗi syscall đã được
++xử lý trong code; chưa kiểm thử cưỡng bức mọi trường hợp cạn tài nguyên.
++Chưa có đề DOCX gốc, MSSV, source TV2/TV3, PDF chung hoặc kết quả review
++của thành viên khác để nghiệm thu gói nộp cuối.
+diff --git a/docs/tv1/functional-tests.txt b/docs/tv1/functional-tests.txt
+new file mode 100644
+index 0000000..47a7ae7
+--- /dev/null
++++ b/docs/tv1/functional-tests.txt
+@@ -0,0 +1,7 @@
++make: 'kernel/kernel' is up to date.
++== Test TV1 sleep arguments and return to shell == TV1 sleep arguments and return to shell: OK (2.5s)
++== Test TV1 pingpong repeated 50 times == TV1 pingpong repeated 50 times: OK (2.0s)
++== Test TV1 primes exact output, repeated 20 times == TV1 primes exact output, repeated 20 times: OK (12.2s)
++== Test TV1 programs used in shell pipelines == TV1 programs used in shell pipelines: OK (1.4s)
++== Test TV1 exit statuses and elapsed xv6 ticks == TV1 exit statuses and elapsed xv6 ticks: OK (2.9s)
++Score: 50/50
+diff --git a/docs/tv1/mit-tests.txt b/docs/tv1/mit-tests.txt
+new file mode 100644
+index 0000000..853f661
+--- /dev/null
++++ b/docs/tv1/mit-tests.txt
+@@ -0,0 +1,6 @@
++make: 'kernel/kernel' is up to date.
++== Test sleep, no arguments == sleep, no arguments: OK (1.3s)
++== Test sleep, returns == sleep, returns: OK (0.9s)
++== Test sleep, makes syscall == sleep, makes syscall: OK (1.0s)
++== Test pingpong == pingpong: OK (0.9s)
++== Test primes == primes: OK (0.7s)
+diff --git a/docs/tv1/status-output.txt b/docs/tv1/status-output.txt
+new file mode 100644
+index 0000000..85669e3
+--- /dev/null
++++ b/docs/tv1/status-output.txt
+@@ -0,0 +1,80 @@
++*** Now run 'gdb' in another window.
++
++xv6 kernel is booting
++
++hart 1 starting
++hart 2 starting
++init: starting sh
++$ tv1check
++sleep 10: 10 ticks elapsed
++sleep: usage: sleep ticks
++sleep: ticks must be an integer from 0 to 2147483647
++sleep: ticks must be an integer from 0 to 2147483647
++sleep: ticks must be an integer from 0 to 2147483647
++sleep: ticks must be a non-negative integer
++sleep: usage: sleep ticks
++13: received ping
++12: received pong
++prime 2
++prime 3
++prime 5
++prime 7
++prime 11
++prime 13
++prime 17
++prime 19
++prime 23
++prime 29
++prime 31
++prime 37
++prime 41
++prime 43
++prime 47
++prime 53
++prime 59
++prime 61
++prime 67
++prime 71
++prime 73
++prime 79
++prime 83
++prime 89
++prime 97
++prime 101
++prime 103
++prime 107
++prime 109
++prime 113
++prime 127
++prime 131
++prime 137
++prime 139
++prime 149
++prime 151
++prime 157
++prime 163
++prime 167
++prime 173
++prime 179
++prime 181
++prime 191
++prime 193
++prime 197
++prime 199
++prime 211
++prime 223
++prime 227
++prime 229
++prime 233
++prime 239
++prime 241
++prime 251
++prime 257
++prime 263
++prime 269
++prime 271
++prime 277
++pingpong: usage: pingpong
++primes: usage: primes
++TV1_STATUS_OK
++$ qemu-system-riscv64: terminating on signal 15 from pid 5190 (make)
+diff --git a/grade-lab01 b/grade-lab01
+new file mode 100755
+index 0000000..388551d
+--- /dev/null
++++ b/grade-lab01
+@@ -0,0 +1,73 @@
++#!/usr/bin/env python3
++"""Tests for the seven programs in Task.md; the MIT grader is unchanged."""
++
++import subprocess
++from gradelib import *
++
++r = Runner()
++
++
++def check_group(group):
++    subprocess.run(['make', '-s', 'user/_lab01check'], check=True)
++    maybe_unlink('fs.img')
++    r.run_qemu(save('xv6.out.lab01.' + group),
++               shell_script(['lab01check ' + group]),
++               make_args=['UEXTRA=user/xargstest.sh user/_lab01check'],
++               timeout=60)
++    r.match('^LAB01_' + group.upper() + '_OK: [0-9]+ cases$',
++            no=['FAIL:', 'panic:', r'usertrap\(', 'exec .* failed'])
++    print('\n' + '\n'.join(line for line in r.qemu.output.splitlines()
++                           if line.startswith(('PASS:', 'LAB01_'))))
++
++
++@test(10, 'Lab01 cp contents, overwrite, same inode and errors')
++def test_cp():
++    check_group('cp')
++
++
++@test(10, 'Lab01 diff lines, quiet mode, long lines and errors')
++def test_diff():
++    check_group('diff')
++
++
++@test(10, 'Lab01 tree depth, filters, paths and errors')
++def test_tree():
++    check_group('tree')
++
++
++@test(10, 'Lab01 du byte totals, options, paths and errors')
++def test_du():
++    check_group('du')
++
++
++@test(10, 'Lab01 descriptor exhaustion and pipe failure cleanup')
++def test_resources():
++    check_group('resources')
++
++
++@test(10, 'Lab01 du full 64-bit size formatting')
++def test_size_format():
++    subprocess.run(['make', '-s', 'user/_dusizecheck'], check=True)
++    maybe_unlink('fs.img')
++    r.run_qemu(save('xv6.out.lab01.size'), shell_script(['dusizecheck']),
++               make_args=['UEXTRA=user/xargstest.sh user/_dusizecheck'])
++    r.match('^0\tzero$', '^4294967296\twide$',
++            '^18446744073709551615\tmaximum$',
++            no=['panic:', r'usertrap\(', 'exec .* failed'])
++
++
++@test(10, 'Lab01 complete seven-program shell workflow')
++def test_workflow():
++    maybe_unlink('fs.img')
++    r.run_qemu(save('xv6.out.lab01.flow'), shell_script([
++        'mkdir demo', 'echo hello > demo/a', 'cp demo/a demo/b',
++        'diff -q demo/a demo/b', 'tree demo -L 1', 'du demo -s',
++        'sleep 0', 'pingpong', 'primes | wc', 'echo LAB01_FLOW_OK'
++    ]))
++    r.match('^demo$', r'^\|-- a$', r'^\|-- b$', '^12\tdemo$',
++            r'^\d+: received ping$', r'^\d+: received pong$',
++            r'^59 118 561 *$', '^LAB01_FLOW_OK$',
++            no=['diff: files differ', 'cannot ', 'failed', 'panic:', r'usertrap\('])
++
++
++run_tests()
+diff --git a/grade-tv1 b/grade-tv1
+new file mode 100755
+index 0000000..c57ef7e
+--- /dev/null
++++ b/grade-tv1
+@@ -0,0 +1,65 @@
++#!/usr/bin/env python3
++
++import re
++import subprocess
++from gradelib import *
++
++r = Runner(save("xv6.out.tv1"))
++
++
++@test(10, "TV1 sleep arguments and return to shell")
++def test_sleep_arguments():
++    r.run_qemu(shell_script([
++        'sleep', 'sleep 1 2', 'sleep -1', 'sleep abc',
++        'sleep 2147483648', 'sleep 99999999999999999999',
++        'sleep 0', 'sleep 10', 'echo TV1_SLEEP_OK'
++    ]))
++    output = r.qemu.output
++    assert_equal(output.count('sleep: usage: sleep ticks'), 2)
++    assert_equal(output.count('sleep: ticks must be an integer'), 4)
++    r.match('^TV1_SLEEP_OK$', no=['exec .* failed'])
++
++
++@test(10, "TV1 pingpong repeated 50 times")
++def test_pingpong_repeated():
++    r.run_qemu(shell_script(['pingpong'] * 50 + ['echo TV1_PINGPONG_OK']))
++    messages = re.findall(r'^(\d+): received (ping|pong)$', r.qemu.output, re.M)
++    assert_equal(len(messages), 100)
++    for i in range(0, len(messages), 2):
++        assert_equal([messages[i][1], messages[i + 1][1]], ['ping', 'pong'])
++        if messages[i][0] == messages[i + 1][0]:
++            raise AssertionError('ping and pong must come from different processes')
++    r.match('^TV1_PINGPONG_OK$', no=['pingpong:', 'exec .* failed'])
++
++
++@test(10, "TV1 primes exact output, repeated 20 times")
++def test_primes_repeated():
++    # Trial division is independent of the pipe-based sieve being tested.
++    expected = [n for n in range(2, 281)
++                if all(n % d != 0 for d in range(2, n))]
++    r.run_qemu(shell_script(['primes'] * 20 + ['echo TV1_PRIMES_OK']))
++    actual = [int(n) for n in re.findall(r'^prime (\d+)$', r.qemu.output, re.M)]
++    assert_equal(actual, expected * 20)
++    r.match('^TV1_PRIMES_OK$', no=['primes:', 'exec .* failed'])
++
++
++@test(10, "TV1 programs used in shell pipelines")
++def test_pipelines():
++    r.run_qemu(shell_script([
++        'primes | wc', 'pingpong | cat', 'echo TV1_PIPELINE_OK'
++    ]))
++    r.match(r'^59 118 \d+ *$', r'^\d+: received ping$',
++            r'^\d+: received pong$', '^TV1_PIPELINE_OK$',
++            no=['primes:', 'pingpong:', 'exec .* failed'])
++
++
++@test(10, "TV1 exit statuses and elapsed xv6 ticks")
++def test_status_and_ticks():
++    subprocess.run(['make', '-s', 'user/_tv1check'], check=True)
++    r.run_qemu(shell_script(['tv1check']),
++               make_args=['UEXTRA=user/xargstest.sh user/_tv1check'])
++    r.match(r'^sleep 10: \d+ ticks elapsed$', '^TV1_STATUS_OK$',
++            no=['tv1check:', 'exec .* failed'])
++
++
++run_tests()
+diff --git a/tests/dusizecheck.c b/tests/dusizecheck.c
+new file mode 100644
+index 0000000..ac68bd1
+--- /dev/null
++++ b/tests/dusizecheck.c
+@@ -0,0 +1,13 @@
++// Exercise the actual du formatter with values the small disk cannot hold.
++#define main du_program_main
++#include "user/du.c"
++#undef main
++
++int
++main(void)
++{
++  print_size(0, "zero");
++  print_size((uint64)1 << 32, "wide");
++  print_size(~(uint64)0, "maximum");
++  exit(0);
++}
+diff --git a/tests/lab01check.c b/tests/lab01check.c
+new file mode 100644
+index 0000000..9247567
+--- /dev/null
++++ b/tests/lab01check.c
+@@ -0,0 +1,474 @@
++#include "kernel/types.h"
++#include "kernel/stat.h"
++#include "kernel/fcntl.h"
++#include "kernel/param.h"
++#include "user/user.h"
++
++static char output[20000], errors[2048], expected[20000];
++static char data[9000], other[9000], longarg[160];
++static char *workdir;
++static int cases;
++static int spare_fds = NOFILE;
++
++static void
++fail(char *message)
++{
++  fprintf(2, "FAIL: %s\n", message);
++  exit(1);
++}
++
++static void
++pass(char *label)
++{
++  cases++;
++  printf("PASS: %s\n", label);
++}
++
++static void
++file(char *path, char *bytes, int length)
++{
++  int fd = open(path, O_CREATE | O_WRONLY | O_TRUNC);
++  if(fd < 0)
++    fail("create fixture");
++  for(int done = 0; done < length;){
++    int n = write(fd, bytes + done, length - done);
++    if(n <= 0)
++      fail("write fixture");
++    done += n;
++  }
++  close(fd);
++}
++
++static void
++load(char *path, char *buffer, int capacity)
++{
++  int fd = open(path, O_RDONLY), length = 0, n;
++  if(fd < 0)
++    fail("open command output");
++  while((n = read(fd, buffer + length, capacity - length - 1)) > 0){
++    length += n;
++    if(length == capacity - 1)
++      fail("command output exceeds test buffer");
++  }
++  close(fd);
++  if(n < 0)
++    fail("read command output");
++  buffer[length] = 0;
++}
++
++static void
++run(char *args[], int wanted)
++{
++  int out[2], length = 0, n;
++  int err = open("/test.err", O_CREATE | O_WRONLY | O_TRUNC);
++  int pid, status = -1;
++  if(err < 0 || pipe(out) < 0)
++    fail("open command capture");
++  pid = fork();
++  if(pid < 0)
++    fail("fork command");
++  if(pid == 0){
++    close(1);
++    if(dup(out[1]) != 1)
++      exit(99);
++    close(2);
++    if(dup(err) != 2)
++      exit(99);
++    close(out[0]);
++    close(out[1]);
++    close(err);
++    for(int i = 3; i < NOFILE - spare_fds; i++)
++      if(dup(0) < 0)
++        exit(99);
++    if(workdir && chdir(workdir) < 0)
++      exit(99);
++    exec(args[0], args);
++    exit(99);
++  }
++  close(out[1]);
++  close(err);
++  // Drain stdout while the child runs, including output larger than a pipe.
++  while((n = read(out[0], output + length, sizeof(output) - length - 1)) > 0){
++    length += n;
++    if(length == sizeof(output) - 1)
++      fail("command output exceeds test buffer");
++  }
++  close(out[0]);
++  if(n < 0)
++    fail("read command output pipe");
++  output[length] = 0;
++  if(wait(&status) != pid || status != wanted){
++    fprintf(2, "FAIL: %s exit status: expected %d, got %d\n",
++            args[0], wanted, status);
++    exit(1);
++  }
++  load("/test.err", errors, sizeof(errors));
++}
++
++static void
++check(char *label, char *args[], int status, char *text)
++{
++  run(args, status);
++  if(text && strcmp(output, text) != 0){
++    fprintf(2, "FAIL: %s output\nExpected:\n%sActual:\n%s", label, text, output);
++    exit(1);
++  }
++  if(errors[0])
++    fail(label);
++  pass(label);
++}
++
++static void
++check_error(char *label, char *args[], int status)
++{
++  run(args, status);
++  if(errors[0] == 0)
++    fail("error must be reported on stderr");
++  pass(label);
++}
++
++static void
++equal_files(char *a, char *b)
++{
++  char ba[512], bb[512];
++  int fa = open(a, O_RDONLY), fb = open(b, O_RDONLY), na, nb;
++  if(fa < 0 || fb < 0)
++    fail("open files for byte comparison");
++  do {
++    na = read(fa, ba, sizeof(ba));
++    nb = read(fb, bb, sizeof(bb));
++    if(na < 0 || nb < 0 || na != nb || memcmp(ba, bb, na) != 0)
++      fail("copied file bytes or length differ");
++  } while(na > 0);
++  close(fa);
++  close(fb);
++}
++
++static void
++test_cp(void)
++{
++  mkdir("ct");
++  mkdir("ct/dir");
++  file("ct/empty", "", 0);
++  file("ct/small", "abc\n", 4);
++  for(int i = 0; i < 8193; i++)
++    data[i] = i % 251;
++  file("ct/big", data, 8193);
++  char *copy[] = {"cp", "ct/empty", "ct/dst", 0};
++  check("cp empty file", copy, 0, "");
++  equal_files(copy[1], copy[2]);
++  copy[1] = "ct/small";
++  check("cp small file", copy, 0, "");
++  equal_files(copy[1], copy[2]);
++  copy[1] = "ct/big";
++  check("cp binary file larger than buffer (8193 bytes)", copy, 0, "");
++  equal_files(copy[1], copy[2]);
++  copy[1] = "ct/small";
++  check("cp overwrite longer destination", copy, 0, "");
++  equal_files(copy[1], copy[2]);
++  copy[1] = "ct/empty";
++  check("cp overwrite with empty file", copy, 0, "");
++  equal_files(copy[1], copy[2]);
++  copy[1] = "ct/small";
++  copy[2] = "ct/small";
++  check_error("cp reject same path", copy, 1);
++  load("ct/small", data, sizeof(data));
++  if(strcmp(data, "abc\n"))
++    fail("same-file copy destroyed source");
++  if(link("ct/small", "ct/alias") < 0)
++    fail("hard-link fixture");
++  copy[2] = "ct/alias";
++  check_error("cp reject hard-link alias", copy, 1);
++  equal_files("ct/small", "ct/alias");
++  load("ct/small", data, sizeof(data));
++  if(strcmp(data, "abc\n"))
++    fail("alias copy destroyed source");
++  copy[1] = "ct/missing";
++  copy[2] = "ct/dst";
++  check_error("cp missing source", copy, 1);
++  copy[1] = "ct/dir";
++  check_error("cp reject source directory", copy, 1);
++  copy[1] = "ct/small";
++  copy[2] = "ct/dir";
++  check_error("cp reject destination directory", copy, 1);
++  copy[2] = "ct/missing/dst";
++  check_error("cp destination parent missing", copy, 1);
++  char *missing[] = {"cp", 0};
++  char *extra[] = {"cp", "ct/small", "ct/dst", "extra", 0};
++  check_error("cp missing arguments", missing, 1);
++  check_error("cp extra arguments", extra, 1);
++}
++
++static void
++test_diff(void)
++{
++  mkdir("ft");
++  file("ft/a", "", 0);
++  file("ft/b", "", 0);
++  char *compare[] = {"diff", "ft/a", "ft/b", 0};
++  check("diff empty files", compare, 0, "");
++  file("ft/a", "one\ntwo\nthree\n", 14);
++  file("ft/b", "one\ntwo\nthree\n", 14);
++  check("diff equal multiline files", compare, 0, "");
++  file("ft/b", "one\nTWO\nthree\n", 14);
++  check("diff changed middle line", compare, 1, "< ft/a:2: two\n> ft/b:2: TWO\n");
++  file("ft/b", "one\ntwo\n", 8);
++  check("diff second file ends first", compare, 1, "< ft/a:3: three\n");
++  file("ft/a", "one\n", 4);
++  check("diff first file ends first", compare, 1, "> ft/b:2: two\n");
++  file("ft/a", "", 0);
++  file("ft/b", "x\ny\n", 4);
++  check("diff empty against multiple lines", compare, 1, "> ft/b:1: x\n> ft/b:2: y\n");
++  char *quietfirst[] = {"diff", "-q", "ft/a", "ft/b", 0};
++  char *quietlast[] = {"diff", "ft/a", "ft/b", "-q", 0};
++  check("diff -q before filenames, one message", quietfirst, 1, "diff: files differ\n");
++  check("diff -q after filenames, one message", quietlast, 1, "diff: files differ\n");
++  file("ft/a", "x\ny\n", 4);
++  check("diff -q equal files is silent", quietlast, 0, "");
++  file("ft/a", "last", 4);
++  file("ft/b", "last", 4);
++  check("diff equal final lines without newline", compare, 0, "");
++  file("ft/b", "last\n", 5);
++  check("diff detect missing final newline", compare, 1,
++        "< ft/a:1: last\n\\ No newline at end of file\n> ft/b:1: last\n");
++  file("ft/a", "\n\n", 2);
++  file("ft/b", "\n", 1);
++  check("diff trailing empty line", compare, 1, "< ft/a:2: \n");
++  memset(data, 'x', 4097);
++  data[4097] = '\n';
++  data[4098] = 0;
++  memmove(other, data, 4099);
++  other[4096] = 'y';
++  file("ft/a", data, 4098);
++  file("ft/b", other, 4098);
++  strcpy(expected, "< ft/a:1: ");
++  strcpy(expected + strlen(expected), data);
++  strcpy(expected + strlen(expected), "> ft/b:1: ");
++  strcpy(expected + strlen(expected), other);
++  check("diff full long lines with change after byte 4096", compare, 1, expected);
++  file("ft/b", data, 4098);
++  check("diff equal long lines", compare, 0, "");
++  char binary1[] = {'a', 0, 'b', '\n'};
++  char binary2[] = {'a', 0, 'c', '\n'};
++  file("ft/a", binary1, sizeof(binary1));
++  file("ft/b", binary1, sizeof(binary1));
++  check("diff equal lines containing NUL", compare, 0, "");
++  file("ft/b", binary2, sizeof(binary2));
++  check("diff -q detects change beyond NUL", quietlast, 1, "diff: files differ\n");
++  compare[1] = "ft/missing";
++  check_error("diff missing first file", compare, 2);
++  compare[1] = "ft/a";
++  compare[2] = "ft/missing";
++  check_error("diff missing second file", compare, 2);
++  compare[2] = "ft";
++  check_error("diff reject directory", compare, 2);
++  char *missing[] = {"diff", 0};
++  char *badoption[] = {"diff", "-x", "ft/a", "ft/b", 0};
++  char *duplicate[] = {"diff", "-q", "ft/a", "ft/b", "-q", 0};
++  char *extra[] = {"diff", "ft/a", "ft/b", "extra", 0};
++  check_error("diff missing arguments", missing, 2);
++  check_error("diff unknown option", badoption, 2);
++  check_error("diff duplicate -q", duplicate, 2);
++  check_error("diff extra filename", extra, 2);
++}
++
++static void
++directories(void)
++{
++  mkdir("dt");
++  mkdir("dt/empty");
++  file("dt/a", "abc", 3);
++  mkdir("dt/sub");
++  file("dt/sub/b", "hello\n", 6);
++  mkdir("dt/sub/deep");
++  file("dt/sub/deep/c", "12345", 5);
++  file("dt/abcdefghijklmn", "z", 1);
++  mkdir("dt/12345678901234");
++  file("dt/12345678901234/abcdefghijklmn", "zz", 2);
++
++  // These entries are accessible by relative paths, but exceed MAXPATH
++  // when reached by walking from lp. The commands must report the limit.
++  mkdir("lp");
++  strcpy(data, "lp");
++  for(int i = 0; i < 8; i++){
++    strcpy(data + strlen(data), "/12345678901234");
++    if(mkdir(data) < 0)
++      fail("long-path directory fixture");
++  }
++  if(chdir(data) < 0)
++    fail("chdir long-path fixture");
++  file("abcdefghijklmn", "x", 1);
++  chdir("/");
++  mkdir("dp");
++  strcpy(data, "dp");
++  for(int i = 0; i < 20; i++){
++    strcpy(data + strlen(data), "/d");
++    if(mkdir(data) < 0)
++      fail("deep directory fixture");
++  }
++  memset(longarg, 'x', 128);
++  longarg[128] = 0;
++}
++
++static void
++test_tree(void)
++{
++  directories();
++  char *missing[] = {"tree", "missing", 0};
++  check_error("tree missing path gives nonzero status", missing, 1);
++  char *walk[] = {"tree", "dt", 0};
++  char *full = "dt\n|-- empty\n|-- a\n|-- sub\n|   |-- b\n|   |-- deep\n|   |   |-- c\n|-- abcdefghijklmn\n|-- 12345678901234\n|   |-- abcdefghijklmn\n";
++  check("tree full hierarchy and 14-character names", walk, 0, full);
++  char *depth[] = {"tree", "dt", "-L", "1", 0};
++  check("tree -L 1", depth, 0,
++        "dt\n|-- empty\n|-- a\n|-- sub\n|-- abcdefghijklmn\n|-- 12345678901234\n");
++  depth[3] = "2";
++  check("tree -L 2", depth, 0,
++        "dt\n|-- empty\n|-- a\n|-- sub\n|   |-- b\n|   |-- deep\n|-- abcdefghijklmn\n|-- 12345678901234\n|   |-- abcdefghijklmn\n");
++  depth[3] = "0";
++  check("tree -L 0", depth, 0, "dt\n");
++  char *dirs[] = {"tree", "-d", "dt", 0};
++  check("tree -d", dirs, 0, "dt\n|-- empty\n|-- sub\n|   |-- deep\n|-- 12345678901234\n");
++  char *combined[] = {"tree", "-d", "-L", "1", "dt", 0};
++  check("tree -d -L 1 with options before path", combined, 0,
++        "dt\n|-- empty\n|-- sub\n|-- 12345678901234\n");
++  walk[1] = "dt/empty";
++  check("tree empty directory", walk, 0, "dt/empty\n");
++  walk[1] = "dt/a";
++  check("tree file root", walk, 0, "dt/a\n");
++  walk[1] = "dt/";
++  strcpy(expected, "dt/\n");
++  strcpy(expected + 4, full + 3);
++  check("tree trailing slash", walk, 0, expected);
++  char *defaultpath[] = {"/tree", 0};
++  workdir = "/dt";
++  strcpy(expected, ".\n");
++  strcpy(expected + 2, full + 3);
++  check("tree default path is current directory", defaultpath, 0, expected);
++  workdir = 0;
++  char *baddepth[] = {"tree", "dt", "-L", "abc", 0};
++  check_error("tree nonnumeric depth", baddepth, 1);
++  baddepth[3] = "-1";
++  check_error("tree negative depth", baddepth, 1);
++  baddepth[3] = "2147483648";
++  check_error("tree overflowing depth", baddepth, 1);
++  char *nodepth[] = {"tree", "dt", "-L", 0};
++  char *unknown[] = {"tree", "-x", 0};
++  char *extra[] = {"tree", "dt", "dt/sub", 0};
++  check_error("tree missing depth argument", nodepth, 1);
++  check_error("tree unknown option", unknown, 1);
++  check_error("tree multiple paths", extra, 1);
++  walk[1] = longarg;
++  check_error("tree oversized root path", walk, 1);
++  walk[1] = "lp";
++  check_error("tree joined path exceeds MAXPATH", walk, 1);
++  walk[1] = "dp";
++  check_error("tree deep recursion fails cleanly at FD limit", walk, 1);
++  depth[1] = "dp";
++  depth[3] = "2";
++  check("tree depth limit avoids deep traversal", depth, 0, "dp\n|-- d\n|   |-- d\n");
++}
++
++static void
++test_du(void)
++{
++  directories();
++  char *missing[] = {"du", "missing", 0};
++  check_error("du missing path gives nonzero status", missing, 1);
++  char *walk[] = {"du", "dt", 0};
++  check("du directory totals exclude directory metadata", walk, 0,
++        "0\tdt/empty\n5\tdt/sub/deep\n11\tdt/sub\n2\tdt/12345678901234\n17\tdt\n");
++  char *all[] = {"du", "dt", "-a", 0};
++  check("du -a includes every file with exact byte sizes", all, 0,
++        "0\tdt/empty\n3\tdt/a\n6\tdt/sub/b\n5\tdt/sub/deep/c\n5\tdt/sub/deep\n11\tdt/sub\n1\tdt/abcdefghijklmn\n2\tdt/12345678901234/abcdefghijklmn\n2\tdt/12345678901234\n17\tdt\n");
++  char *summary[] = {"du", "-s", "dt", 0};
++  check("du -s only root total", summary, 0, "17\tdt\n");
++  char *combined[] = {"du", "-a", "dt", "-s", 0};
++  check("du -a -s gives summary priority", combined, 0, "17\tdt\n");
++  walk[1] = "dt/empty";
++  check("du empty directory is zero", walk, 0, "0\tdt/empty\n");
++  walk[1] = "dt/a";
++  check("du file root without -a is silent", walk, 0, "");
++  all[1] = "dt/a";
++  check("du -a file root", all, 0, "3\tdt/a\n");
++  summary[2] = "dt/a";
++  check("du -s file root", summary, 0, "3\tdt/a\n");
++  summary[2] = "dt/";
++  check("du trailing slash", summary, 0, "17\tdt/\n");
++  char *defaultpath[] = {"/du", 0};
++  workdir = "/dt";
++  check("du default path is current directory", defaultpath, 0,
++        "0\t./empty\n5\t./sub/deep\n11\t./sub\n2\t./12345678901234\n17\t.\n");
++  workdir = 0;
++  char *unknown[] = {"du", "-x", 0};
++  char *extra[] = {"du", "dt", "dt/sub", 0};
++  check_error("du unknown option", unknown, 1);
++  check_error("du multiple paths", extra, 1);
++  walk[1] = longarg;
++  check_error("du oversized root path", walk, 1);
++  walk[1] = "lp";
++  check_error("du joined path exceeds MAXPATH", walk, 1);
++  summary[2] = "lp";
++  check_error("du -s reports traversal error", summary, 1);
++  if(output[0])
++    fail("du -s must not print a partial total on error");
++  walk[1] = "dp";
++  check_error("du deep recursion fails cleanly at FD limit", walk, 1);
++}
++
++static void
++test_resources(void)
++{
++  mkdir("rt");
++  file("rt/a", "abc", 3);
++  file("rt/b", "original", 8);
++  char *copy[] = {"cp", "rt/a", "rt/b", 0};
++  char *compare[] = {"diff", "rt/a", "rt/b", 0};
++  char *tree[] = {"tree", "rt", 0};
++  char *du[] = {"du", "rt", 0};
++  char *pingpong[] = {"pingpong", 0};
++  char *primes[] = {"primes", 0};
++  spare_fds = 0;
++  check_error("cp no descriptor available for source", copy, 1);
++  check_error("diff no descriptor available for first file", compare, 2);
++  check_error("tree no descriptor available for root", tree, 1);
++  check_error("du no descriptor available for root", du, 1);
++  check_error("pingpong first pipe fails without hanging", pingpong, 1);
++  check_error("primes first pipe fails without hanging", primes, 1);
++  spare_fds = 1;
++  check_error("cp no descriptor available for destination", copy, 1);
++  load("rt/b", data, sizeof(data));
++  if(strcmp(data, "original"))
++    fail("failed cp truncated destination");
++  check_error("diff second open fails cleanly", compare, 2);
++  check_error("tree child stat fails cleanly", tree, 1);
++  check_error("du child open fails cleanly", du, 1);
++  spare_fds = 3;
++  check_error("pingpong second pipe fails without hanging", pingpong, 1);
++  spare_fds = 2;
++  check_error("primes filter pipe failure reaches generator", primes, 1);
++}
++
++int
++main(int argc, char *argv[])
++{
++  if(argc != 2)
++    fail("usage: lab01check cp|diff|tree|du|resources");
++  if(strcmp(argv[1], "cp") == 0)
++    test_cp();
++  else if(strcmp(argv[1], "diff") == 0)
++    test_diff();
++  else if(strcmp(argv[1], "tree") == 0)
++    test_tree();
++  else if(strcmp(argv[1], "du") == 0)
++    test_du();
++  else if(strcmp(argv[1], "resources") == 0)
++    test_resources();
++  else
++    fail("unknown test group");
++  for(char *p = argv[1]; *p; p++)
++    if(*p >= 'a' && *p <= 'z')
++      *p += 'A' - 'a';
++  printf("LAB01_%s_OK: %d cases\n", argv[1], cases);
++  exit(0);
++}
+diff --git a/tests/tv1check.c b/tests/tv1check.c
+new file mode 100644
+index 0000000..b848a65
+--- /dev/null
++++ b/tests/tv1check.c
+@@ -0,0 +1,64 @@
++#include "kernel/types.h"
++#include "user/user.h"
++
++// Run inside xv6: its shell does not display a command's exit status.
++static void
++check(char *args[], int expected)
++{
++  int pid, status;
++
++  pid = fork();
++  if(pid < 0){
++    fprintf(2, "tv1check: fork failed\n");
++    exit(1);
++  }
++  if(pid == 0){
++    exec(args[0], args);
++    fprintf(2, "tv1check: exec failed\n");
++    exit(99);
++  }
++  if(wait(&status) != pid || status != expected){
++    fprintf(2, "tv1check: unexpected exit status from %s\n", args[0]);
++    exit(1);
++  }
++}
++
++int
++main(void)
++{
++  int start, elapsed;
++  char *zero[] = {"sleep", "0", 0};
++  char *ten[] = {"sleep", "10", 0};
++  char *missing[] = {"sleep", 0};
++  char *negative[] = {"sleep", "-1", 0};
++  char *invalid[] = {"sleep", "abc", 0};
++  char *overflow[] = {"sleep", "2147483648", 0};
++  char *empty[] = {"sleep", "", 0};
++  char *extra[] = {"sleep", "1", "2", 0};
++  char *pingpong[] = {"pingpong", 0};
++  char *primes[] = {"primes", 0};
++  char *badpingpong[] = {"pingpong", "extra", 0};
++  char *badprimes[] = {"primes", "extra", 0};
++
++  check(zero, 0);
++  start = uptime();
++  check(ten, 0);
++  elapsed = uptime() - start;
++  if(elapsed < 10){
++    fprintf(2, "tv1check: sleep 10 returned before 10 ticks\n");
++    exit(1);
++  }
++  printf("sleep 10: %d ticks elapsed\n", elapsed);
++  check(missing, 1);
++  check(negative, 1);
++  check(invalid, 1);
++  check(overflow, 1);
++  check(empty, 1);
++  check(extra, 1);
++  check(pingpong, 0);
++  check(primes, 0);
++  check(badpingpong, 1);
++  check(badprimes, 1);
++  printf("TV1_STATUS_OK\n");
++  exit(0);
++}
+diff --git a/tools/package-lab01.py b/tools/package-lab01.py
+new file mode 100755
+index 0000000..40640a0
+--- /dev/null
++++ b/tools/package-lab01.py
+@@ -0,0 +1,85 @@
++#!/usr/bin/env python3
++"""Verify the integrated Lab 01 patch and archive clean source for reporting."""
++
++import io
++from pathlib import Path
++import subprocess
++import tarfile
++import tempfile
++import zipfile
++
++root = Path(__file__).resolve().parents[1]
++
++
++def git(*args):
++    return subprocess.check_output(['git', *args], cwd=root)
++
++
++def run(*args, cwd, log=None):
++    subprocess.run(args, cwd=cwd, check=True, stdout=log, stderr=log)
++
++
++def main():
++    if git('status', '--porcelain').strip():
++        raise SystemExit('Commit the integration changes before packaging.')
++    baseline = (root / 'docs/tv1/BASELINE').read_text().strip()
++    commit = git('rev-parse', 'HEAD').decode().strip()
++    run('git', 'merge-base', '--is-ancestor', baseline, commit, cwd=root)
++    for program in ['sleep', 'pingpong', 'primes', 'cp', 'diff', 'tree', 'du']:
++        if not (root / f'user/{program}.c').is_file():
++            raise SystemExit(f'Missing Lab 01 program: {program}')
++
++    output = root / 'submissions/lab01'
++    output.mkdir(parents=True, exist_ok=True)
++    patch = output / 'Lab01.patch'
++    patch.write_bytes(git('diff', '--binary', baseline, commit))
++
++    with tempfile.TemporaryDirectory(prefix='xv6-lab01-') as directory:
++        source = Path(directory) / 'xv6-labs-2024'
++        source.mkdir()
++        archive = git('archive', '--format=tar', baseline)
++        with tarfile.open(fileobj=io.BytesIO(archive)) as files:
++            files.extractall(source, filter='data')
++        run('git', 'apply', '--check', str(patch), cwd=source)
++        run('git', 'apply', str(patch), cwd=source)
++        with (output / 'verify-build.txt').open('w') as log:
++            run('make', '-j2', 'kernel/kernel', 'fs.img', cwd=source, log=log)
++            run('make', 'clean', cwd=source, log=log)
++
++        expected = set(git('ls-tree', '-r', '--name-only', commit).decode().splitlines())
++        actual = {str(path.relative_to(source))
++                  for path in source.rglob('*') if path.is_file()}
++        if actual != expected:
++            raise SystemExit('Clean source file list differs from the commit.')
++        # Ensure the patch reconstructs the committed file contents as well.
++        for name in expected:
++            if (source / name).read_bytes() != git('show', f'{commit}:{name}'):
++                raise SystemExit(f'Patched source differs from the commit: {name}')
++
++        source_zip = output / 'xv6-labs-2024.zip'
++        with zipfile.ZipFile(source_zip, 'w', zipfile.ZIP_DEFLATED) as archive:
++            for path in sorted(source.rglob('*')):
++                if path.is_file():
++                    archive.write(path, path.relative_to(source.parent))
++
++    (output / 'HANDOFF.txt').write_text(
++        'Integrated seven-program Lab 01 code handoff for the report phase.\n'
++        f'Baseline: {baseline}\nCommit: {commit}\n'
++        'Patch applied to the clean baseline and built successfully.\n'
++        'All source contents match the commit; make clean ran before ZIP.\n'
++        'Pending final submission: report PDF, student IDs and group approval.\n'
++    )
++    handoff = output / 'Lab01-code-handoff.zip'
++    with zipfile.ZipFile(handoff, 'w', zipfile.ZIP_DEFLATED) as archive:
++        archive.write(patch, 'Realease/Lab01.patch')
++        archive.write(source_zip, 'Source/xv6-labs-2024.zip')
++        archive.write(output / 'HANDOFF.txt', 'HANDOFF.txt')
++        archive.write(output / 'verify-build.txt', 'verify-build.txt')
++        for path in sorted((root / 'docs/lab01').iterdir()):
++            if path.is_file():
++                archive.write(path, 'docs/' + path.name)
++    print(f'Patch verified and clean source archived: {handoff}')
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/tools/package-tv1.py b/tools/package-tv1.py
+new file mode 100755
+index 0000000..deadb6e
+--- /dev/null
++++ b/tools/package-tv1.py
+@@ -0,0 +1,79 @@
++#!/usr/bin/env python3
++"""Create a TV1 handoff from a clean, committed tree and verify its patch."""
++
++import io
++from pathlib import Path
++import subprocess
++import tarfile
++import tempfile
++import zipfile
++
++root = Path(__file__).resolve().parents[1]
++
++
++def git(*args):
++    return subprocess.check_output(['git', *args], cwd=root)
++
++
++def run(*args, cwd, log=None):
++    subprocess.run(args, cwd=cwd, check=True, stdout=log, stderr=log)
++
++
++def main():
++    if git('status', '--porcelain').strip():
++        raise SystemExit('Commit the handoff changes before packaging.')
++    baseline = (root / 'docs/tv1/BASELINE').read_text().strip()
++    commit = git('rev-parse', 'HEAD').decode().strip()
++    run('git', 'merge-base', '--is-ancestor', baseline, commit, cwd=root)
++
++    output = root / 'submissions/tv1'
++    output.mkdir(parents=True, exist_ok=True)
++    patch = output / 'TV1.patch'
++    patch.write_bytes(git('diff', '--binary', baseline, commit))
++
++    with tempfile.TemporaryDirectory(prefix='xv6-tv1-') as directory:
++        source = Path(directory) / 'xv6-labs-2024'
++        source.mkdir()
++        archive = git('archive', '--format=tar', baseline)
++        with tarfile.open(fileobj=io.BytesIO(archive)) as files:
++            files.extractall(source, filter='data')
++        run('git', 'apply', '--check', str(patch), cwd=source)
++        run('git', 'apply', str(patch), cwd=source)
++        with (output / 'verify-build.txt').open('w') as log:
++            run('make', '-j2', 'kernel/kernel', 'fs.img', cwd=source, log=log)
++            run('make', 'clean', cwd=source, log=log)
++
++        # Check that cleanup left exactly the committed source files.
++        expected = set(git('ls-tree', '-r', '--name-only', commit).decode().splitlines())
++        actual = {str(path.relative_to(source))
++                  for path in source.rglob('*') if path.is_file()}
++        if actual != expected:
++            raise SystemExit('Clean source file list differs from the commit.')
++
++        source_zip = output / 'xv6-labs-2024.zip'
++        with zipfile.ZipFile(source_zip, 'w', zipfile.ZIP_DEFLATED) as archive:
++            for path in sorted(source.rglob('*')):
++                if path.is_file():
++                    archive.write(path, path.relative_to(source.parent))
++
++    (output / 'HANDOFF.txt').write_text(
++        f'TV1 handoff only; not the final group submission.\n'
++        f'Baseline: {baseline}\nCommit: {commit}\n'
++        'Patch applied to the clean baseline and built successfully.\n'
++        'Source was cleaned with make clean before archiving.\n'
++        'Pending: TV2/TV3 programs, cross-review, group PDF and student IDs.\n'
++    )
++    handoff = output / 'TV1-handoff.zip'
++    with zipfile.ZipFile(handoff, 'w', zipfile.ZIP_DEFLATED) as archive:
++        archive.write(patch, 'Realease/TV1.patch')
++        archive.write(source_zip, 'Source/xv6-labs-2024.zip')
++        archive.write(output / 'HANDOFF.txt', 'HANDOFF.txt')
++        archive.write(output / 'verify-build.txt', 'verify-build.txt')
++        for path in sorted((root / 'docs/tv1').iterdir()):
++            if path.is_file():
++                archive.write(path, 'docs/' + path.name)
++    print(f'Patch applied and built; clean source archived: {handoff}')
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/user/cp.c b/user/cp.c
+new file mode 100644
+index 0000000..91521b8
+--- /dev/null
++++ b/user/cp.c
+@@ -0,0 +1,90 @@
++#include "kernel/types.h"
++#include "kernel/stat.h"
++#include "kernel/fcntl.h"
++#include "user/user.h"
++
++int
++main(int argc, char *argv[])
++{
++    int src, dst;
++    int n;
++    char buffer[1024];
++    struct stat src_stat, dst_stat;
++
++    if (argc != 3) {
++        fprintf(2, "cp: usage: cp source destination\n");
++        exit(1);
++    }
++
++    // Mo file nguon de doc.
++    src = open(argv[1], O_RDONLY);
++    if (src < 0) {
++        fprintf(2, "cp: cannot open %s\n", argv[1]);
++        exit(1);
++    }
++
++    if (fstat(src, &src_stat) < 0) {
++        fprintf(2, "cp: cannot stat %s\n", argv[1]);
++        close(src);
++        exit(1);
++    }
++
++    if (src_stat.type != T_FILE) {
++        fprintf(2, "cp: %s is not a regular file\n", argv[1]);
++        close(src);
++        exit(1);
++    }
++
++    // Kiem tra truoc khi xoa noi dung cu cua file dich.
++    if (stat(argv[2], &dst_stat) == 0) {
++        if (src_stat.dev == dst_stat.dev &&
++            src_stat.ino == dst_stat.ino) {
++            fprintf(2, "cp: source and destination are the same file\n");
++            close(src);
++            exit(1);
++        }
++
++        if (dst_stat.type != T_FILE) {
++            fprintf(2, "cp: %s is not a regular file\n", argv[2]);
++            close(src);
++            exit(1);
++        }
++    }
++
++    // Tao file neu chua co; xoa noi dung cu neu da co.
++    dst = open(argv[2], O_WRONLY | O_CREATE | O_TRUNC);
++    if (dst < 0) {
++        fprintf(2, "cp: cannot open %s\n", argv[2]);
++        close(src);
++        exit(1);
++    }
++
++    // Doc tung khoi, ghi het khoi do roi moi doc tiep.
++    while ((n = read(src, buffer, sizeof(buffer))) > 0) {
++        int written = 0;
++
++        while (written < n) {
++            int count = write(dst, buffer + written, n - written);
++
++            if (count <= 0) {
++                fprintf(2, "cp: write failed for %s\n", argv[2]);
++                close(src);
++                close(dst);
++                exit(1);
++            }
++
++            written += count;
++        }
++    }
++
++    if (n < 0) {
++        fprintf(2, "cp: read failed for %s\n", argv[1]);
++        close(src);
++        close(dst);
++        exit(1);
++    }
++
++    close(src);
++    close(dst);
++    exit(0);
++}
+diff --git a/user/diff.c b/user/diff.c
+new file mode 100644
+index 0000000..a6eacf1
+--- /dev/null
++++ b/user/diff.c
+@@ -0,0 +1,186 @@
++#include "kernel/types.h"
++#include "kernel/stat.h"
++#include "kernel/fcntl.h"
++#include "user/user.h"
++
++// Tra ve: so byte cua dong, 0 neu EOF, so am neu loi.
++// Giu ca newline de phan biet dong cuoi co/khong co newline.
++static int
++read_line(int fd, char **buffer, int *capacity)
++{
++    int length = 0;
++
++    for (;;) {
++        char c;
++        int n = read(fd, &c, 1);
++
++        if (n < 0)
++            return -1;
++
++        if (n == 0)
++            return length;
++
++        if (length == *capacity) {
++            if (*capacity >= (1 << 28))
++                return -2;
++
++            int new_capacity = *capacity ? *capacity * 2 : 128;
++            char *new_buffer = malloc(new_capacity);
++
++            if (new_buffer == 0)
++                return -2;
++
++            if (length > 0)
++                memmove(new_buffer, *buffer, length);
++            if (*buffer != 0)
++                free(*buffer);
++            *buffer = new_buffer;
++            *capacity = new_capacity;
++        }
++
++        (*buffer)[length++] = c;
++
++        if (c == '\n')
++            return length;
++    }
++}
++
++static int
++same_line(char *a, int na, char *b, int nb)
++{
++    if (na != nb)
++        return 0;
++
++    for (int i = 0; i < na; i++) {
++        if (a[i] != b[i])
++            return 0;
++    }
++
++    return 1;
++}
++
++static void
++print_line(char marker, char *name, int number,
++           char *buffer, int length)
++{
++    printf("%s %s:%d: ", marker == '<' ? "<" : ">", name, number);
++
++    // Khong dung %s vi buffer khong can ky tu ket thuc '\0'.
++    write(1, buffer, length);
++
++    if (buffer[length - 1] != '\n') {
++        printf("\n");
++        printf("\\ No newline at end of file\n");
++    }
++}
++
++static int
++open_file(char *name)
++{
++    struct stat st;
++    int fd = open(name, O_RDONLY);
++
++    if (fd < 0) {
++        fprintf(2, "diff: cannot open %s\n", name);
++        return -1;
++    }
++
++    if (fstat(fd, &st) < 0 || st.type != T_FILE) {
++        fprintf(2, "diff: %s is not a regular file\n", name);
++        close(fd);
++        return -1;
++    }
++
++    return fd;
++}
++
++int
++main(int argc, char *argv[])
++{
++    char *names[2];
++    int file_count = 0;
++    int quiet = 0;
++
++    // Chap nhan -q truoc hoac sau hai ten file.
++    for (int i = 1; i < argc; i++) {
++        if (strcmp(argv[i], "-q") == 0) {
++            if (quiet)
++                goto usage;
++            quiet = 1;
++        } else {
++            if (argv[i][0] == '-' || file_count == 2)
++                goto usage;
++
++            names[file_count++] = argv[i];
++        }
++    }
++
++    if (file_count != 2)
++        goto usage;
++
++    int fd1 = open_file(names[0]);
++    if (fd1 < 0)
++        exit(2);
++
++    int fd2 = open_file(names[1]);
++    if (fd2 < 0) {
++        close(fd1);
++        exit(2);
++    }
++
++    char *line1 = 0;
++    char *line2 = 0;
++    int capacity1 = 0;
++    int capacity2 = 0;
++    int number = 1;
++    int result = 0;
++
++    for (;;) {
++        int n1 = read_line(fd1, &line1, &capacity1);
++        int n2 = read_line(fd2, &line2, &capacity2);
++
++        if (n1 < 0 || n2 < 0) {
++            if (n1 == -2 || n2 == -2)
++                fprintf(2, "diff: cannot allocate memory for line\n");
++            else
++                fprintf(2, "diff: read error\n");
++
++            result = 2;
++            break;
++        }
++
++        if (n1 == 0 && n2 == 0)
++            break;
++
++        if (!same_line(line1, n1, line2, n2)) {
++            result = 1;
++
++            if (quiet) {
++                printf("diff: files differ\n");
++                break;
++            }
++
++            if (n1 > 0)
++                print_line('<', names[0], number, line1, n1);
++
++            if (n2 > 0)
++                print_line('>', names[1], number, line2, n2);
++        }
++
++        number++;
++    }
++
++    if (line1 != 0) {
++        free(line1);
++    }
++    if (line2 != 0) {
++        free(line2);
++    }
++    close(fd1);
++    close(fd2);
++    exit(result);
++
++usage:
++    fprintf(2, "diff: usage: diff file1 file2 [-q]\n");
++    exit(2);
++}
+diff --git a/user/du.c b/user/du.c
+new file mode 100644
+index 0000000..8590165
+--- /dev/null
++++ b/user/du.c
+@@ -0,0 +1,123 @@
++#include "kernel/types.h"
++#include "kernel/stat.h"
++#include "user/user.h"
++#include "kernel/fs.h"
++#include "kernel/param.h"
++#include "kernel/fcntl.h"
++
++static int option_a, option_s;
++
++static char*
++fmtpath(char *parent, char *child, char *buf)
++{
++  int length = strlen(parent);
++  int slash = length > 0 && parent[length - 1] != '/';
++
++  if(length + slash + strlen(child) >= MAXPATH)
++    return 0;
++  strcpy(buf, parent);
++  if(slash)
++    buf[length++] = '/';
++  strcpy(buf + length, child);
++  return buf;
++}
++
++// printf cua xv6 nay van rut gon %lu ve 32 bit; doi uint64 sang chuoi.
++static void
++print_size(uint64 size, char *path)
++{
++  char digits[21];
++  int i = sizeof(digits) - 1;
++
++  digits[i] = 0;
++  do {
++    digits[--i] = '0' + size % 10;
++    size /= 10;
++  } while(size != 0);
++  printf("%s\t%s\n", digits + i, path);
++}
++
++static int
++du(char *path, uint64 *size)
++{
++  int fd, n, status = 0;
++  struct stat st;
++  struct dirent de;
++  char buf[MAXPATH], name[DIRSIZ + 1];
++  uint64 total = 0, child_size;
++
++  if((fd = open(path, O_RDONLY)) < 0){
++    fprintf(2, "du: cannot open %s\n", path);
++    return 1;
++  }
++  if(fstat(fd, &st) < 0){
++    fprintf(2, "du: cannot stat %s\n", path);
++    close(fd);
++    return 1;
++  }
++  if(st.type != T_DIR){
++    *size = st.type == T_FILE ? st.size : 0;
++    close(fd);
++    if(option_a && !option_s)
++      print_size(*size, path);
++    return 0;
++  }
++
++  while((n = read(fd, &de, sizeof(de))) == sizeof(de)){
++    if(de.inum == 0)
++      continue;
++    memmove(name, de.name, DIRSIZ);
++    name[DIRSIZ] = 0;
++    if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
++      continue;
++    if(fmtpath(path, name, buf) == 0){
++      fprintf(2, "du: path too long: %s/%s\n", path, name);
++      status = 1;
++      continue;
++    }
++    if(du(buf, &child_size) != 0)
++      status = 1;
++    else
++      total += child_size;
++  }
++  if(n != 0){
++    fprintf(2, "du: cannot read directory %s\n", path);
++    status = 1;
++  }
++  close(fd);
++  *size = total;
++  if(!option_s && status == 0)
++    print_size(total, path);
++  return status;
++}
++
++int
++main(int argc, char *argv[])
++{
++  char *path = ".";
++  int pathset = 0;
++  uint64 total;
++
++  for(int i = 1; i < argc; i++){
++    if(strcmp(argv[i], "-a") == 0){
++      option_a = 1;
++    } else if(strcmp(argv[i], "-s") == 0){
++      option_s = 1;
++    } else if(argv[i][0] == '-' || pathset){
++      fprintf(2, "du: usage: du [path] [-a] [-s]\n");
++      exit(1);
++    } else {
++      path = argv[i];
++      pathset = 1;
++    }
++  }
++  if(strlen(path) >= MAXPATH){
++    fprintf(2, "du: path too long\n");
++    exit(1);
++  }
++  if(du(path, &total) != 0)
++    exit(1);
++  if(option_s)
++    print_size(total, path);
++  exit(0);
++}
+diff --git a/user/pingpong.c b/user/pingpong.c
+new file mode 100644
+index 0000000..564c1cf
+--- /dev/null
++++ b/user/pingpong.c
+@@ -0,0 +1,72 @@
++#include "kernel/types.h"
++#include "user/user.h"
++
++int
++main(int argc, char *argv[])
++{
++  int tochild[2], toparent[2];
++  int pid, status = 0, childstatus;
++  char byte = 'x';
++
++  if(argc != 1){
++    fprintf(2, "pingpong: usage: pingpong\n");
++    exit(1);
++  }
++  if(pipe(tochild) < 0){
++    fprintf(2, "pingpong: pipe failed\n");
++    exit(1);
++  }
++  if(pipe(toparent) < 0){
++    fprintf(2, "pingpong: pipe failed\n");
++    close(tochild[0]);
++    close(tochild[1]);
++    exit(1);
++  }
++
++  pid = fork();
++  if(pid < 0){
++    fprintf(2, "pingpong: fork failed\n");
++    close(tochild[0]);
++    close(tochild[1]);
++    close(toparent[0]);
++    close(toparent[1]);
++    exit(1);
++  }
++
++  if(pid == 0){
++    close(tochild[1]);
++    close(toparent[0]);
++    if(read(tochild[0], &byte, 1) != 1){
++      fprintf(2, "pingpong: child could not read ping\n");
++      close(tochild[0]);
++      close(toparent[1]);
++      exit(1);
++    }
++    close(tochild[0]);
++    printf("%d: received ping\n", getpid());
++    if(write(toparent[1], &byte, 1) != 1){
++      fprintf(2, "pingpong: child could not write pong\n");
++      status = 1;
++    }
++    close(toparent[1]);
++    exit(status);
++  }
++
++  close(tochild[0]);
++  close(toparent[1]);
++  if(write(tochild[1], &byte, 1) != 1){
++    fprintf(2, "pingpong: parent could not write ping\n");
++    status = 1;
++  }
++  close(tochild[1]);
++  if(read(toparent[0], &byte, 1) != 1){
++    fprintf(2, "pingpong: parent could not read pong\n");
++    status = 1;
++  } else {
++    printf("%d: received pong\n", getpid());
++  }
++  close(toparent[0]);
++  if(wait(&childstatus) < 0 || childstatus != 0)
++    status = 1;
++  exit(status);
++}
+diff --git a/user/primes.c b/user/primes.c
+new file mode 100644
+index 0000000..f6baf22
+--- /dev/null
++++ b/user/primes.c
+@@ -0,0 +1,113 @@
++#include "kernel/types.h"
++#include "user/user.h"
++
++// Each child continues as the next filter, without growing the call stack.
++static int
++sieve(int input)
++{
++  int prime, number, n, p[2], pid, status, childstatus;
++
++  for(;;){
++    n = read(input, &prime, sizeof(prime));
++    if(n != sizeof(prime)){
++      close(input);
++      if(n == 0)
++        return 0;
++      fprintf(2, "primes: read failed\n");
++      return 1;
++    }
++    printf("prime %d\n", prime);
++
++    // A new filter is needed only after a number survives this filter.
++    while((n = read(input, &number, sizeof(number))) == sizeof(number)){
++      if(number % prime != 0)
++        break;
++    }
++    if(n != sizeof(number)){
++      close(input);
++      if(n == 0)
++        return 0;
++      fprintf(2, "primes: read failed\n");
++      return 1;
++    }
++
++    if(pipe(p) < 0){
++      fprintf(2, "primes: pipe failed\n");
++      close(input);
++      return 1;
++    }
++    pid = fork();
++    if(pid < 0){
++      fprintf(2, "primes: fork failed\n");
++      close(input);
++      close(p[0]);
++      close(p[1]);
++      return 1;
++    }
++    if(pid == 0){
++      close(input);
++      close(p[1]);
++      input = p[0];
++      continue;
++    }
++
++    close(p[0]);
++    status = 0;
++    do {
++      if(number % prime != 0 &&
++         write(p[1], &number, sizeof(number)) != sizeof(number)){
++        fprintf(2, "primes: write failed\n");
++        status = 1;
++        break;
++      }
++    } while((n = read(input, &number, sizeof(number))) == sizeof(number));
++    if(n != 0 && n != sizeof(number)){
++      fprintf(2, "primes: read failed\n");
++      status = 1;
++    }
++    close(input);
++    close(p[1]); // Let the next filter observe EOF before waiting for it.
++    if(wait(&childstatus) < 0 || childstatus != 0)
++      status = 1;
++    return status;
++  }
++}
++
++int
++main(int argc, char *argv[])
++{
++  int p[2], pid, number, status = 0, childstatus;
++
++  if(argc != 1){
++    fprintf(2, "primes: usage: primes\n");
++    exit(1);
++  }
++  if(pipe(p) < 0){
++    fprintf(2, "primes: pipe failed\n");
++    exit(1);
++  }
++  pid = fork();
++  if(pid < 0){
++    fprintf(2, "primes: fork failed\n");
++    close(p[0]);
++    close(p[1]);
++    exit(1);
++  }
++  if(pid == 0){
++    close(p[1]);
++    exit(sieve(p[0]));
++  }
++
++  close(p[0]);
++  for(number = 2; number <= 280; number++){
++    if(write(p[1], &number, sizeof(number)) != sizeof(number)){
++      fprintf(2, "primes: write failed\n");
++      status = 1;
++      break;
++    }
++  }
++  close(p[1]);
++  if(wait(&childstatus) < 0 || childstatus != 0)
++    status = 1;
++  exit(status);
++}
+diff --git a/user/sleep.c b/user/sleep.c
+new file mode 100644
+index 0000000..4c6f93d
+--- /dev/null
++++ b/user/sleep.c
+@@ -0,0 +1,35 @@
++#include "kernel/types.h"
++#include "user/user.h"
++
++int
++main(int argc, char *argv[])
++{
++  int i, ticks;
++  uint value = 0;
++
++  if(argc != 2){
++    fprintf(2, "sleep: usage: sleep ticks\n");
++    exit(1);
++  }
++
++  // Check the number before atoi, which does not report invalid input.
++  if(argv[1][0] == '\0'){
++    fprintf(2, "sleep: ticks must be a non-negative integer\n");
++    exit(1);
++  }
++  for(i = 0; argv[1][i]; i++){
++    if(argv[1][i] < '0' || argv[1][i] > '9' ||
++       value > (2147483647U - (argv[1][i] - '0')) / 10){
++      fprintf(2, "sleep: ticks must be an integer from 0 to 2147483647\n");
++      exit(1);
++    }
++    value = value * 10 + argv[1][i] - '0';
++  }
++
++  ticks = atoi(argv[1]);
++  if(sleep(ticks) < 0){
++    fprintf(2, "sleep: system call failed\n");
++    exit(1);
++  }
++  exit(0);
++}
+diff --git a/user/tree.c b/user/tree.c
+new file mode 100644
+index 0000000..07d33cc
+--- /dev/null
++++ b/user/tree.c
+@@ -0,0 +1,127 @@
++#include "kernel/types.h"
++#include "kernel/stat.h"
++#include "user/user.h"
++#include "kernel/fs.h"
++#include "kernel/param.h"
++#include "kernel/fcntl.h"
++
++// Noi duong dan, ke ca truong hop parent da co dau '/' o cuoi.
++static char*
++fmtpath(char *parent, char *child, char *buf)
++{
++  int length = strlen(parent);
++  int slash = length > 0 && parent[length - 1] != '/';
++
++  if(length + slash + strlen(child) >= MAXPATH)
++    return 0;
++  strcpy(buf, parent);
++  if(slash)
++    buf[length++] = '/';
++  strcpy(buf + length, child);
++  return buf;
++}
++
++static int
++tree(char *path, int level, int maxDepth, int onlyDir)
++{
++  int fd, n, status = 0;
++  struct stat st;
++  struct dirent de;
++  char buf[MAXPATH], name[DIRSIZ + 1];
++
++  if((fd = open(path, O_RDONLY)) < 0){
++    fprintf(2, "tree: cannot open %s\n", path);
++    return 1;
++  }
++  if(fstat(fd, &st) < 0){
++    fprintf(2, "tree: cannot stat %s\n", path);
++    close(fd);
++    return 1;
++  }
++  if(level == 1)
++    printf("%s\n", path);
++  if(st.type != T_DIR || (maxDepth != -1 && level > maxDepth)){
++    close(fd);
++    return 0;
++  }
++
++  while((n = read(fd, &de, sizeof(de))) == sizeof(de)){
++    if(de.inum == 0)
++      continue;
++    // Ten trong dirent co the du 14 byte va khong co ky tu ket thuc.
++    memmove(name, de.name, DIRSIZ);
++    name[DIRSIZ] = 0;
++    if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
++      continue;
++    if(fmtpath(path, name, buf) == 0){
++      fprintf(2, "tree: path too long: %s/%s\n", path, name);
++      status = 1;
++      continue;
++    }
++    if(stat(buf, &st) < 0){
++      fprintf(2, "tree: cannot stat %s\n", buf);
++      status = 1;
++      continue;
++    }
++    if(onlyDir && st.type != T_DIR)
++      continue;
++    for(int i = 0; i < level - 1; i++)
++      printf("|   ");
++    printf("|-- %s\n", name);
++    if(st.type == T_DIR && (maxDepth == -1 || level < maxDepth)){
++      if(tree(buf, level + 1, maxDepth, onlyDir) != 0)
++        status = 1;
++    }
++  }
++  if(n != 0){
++    fprintf(2, "tree: cannot read directory %s\n", path);
++    status = 1;
++  }
++  close(fd);
++  return status;
++}
++
++static int
++depth(char *text)
++{
++  uint value = 0;
++
++  if(text[0] == 0)
++    return -1;
++  for(int i = 0; text[i]; i++){
++    if(text[i] < '0' || text[i] > '9' ||
++       value > (2147483647U - (text[i] - '0')) / 10)
++      return -1;
++    value = value * 10 + text[i] - '0';
++  }
++  return value;
++}
++
++int
++main(int argc, char *argv[])
++{
++  char *path = ".";
++  int maxDepth = -1, onlyDir = 0, pathset = 0;
++
++  for(int i = 1; i < argc; i++){
++    if(strcmp(argv[i], "-d") == 0){
++      onlyDir = 1;
++    } else if(strcmp(argv[i], "-L") == 0){
++      if(i + 1 == argc || (maxDepth = depth(argv[++i])) < 0){
++        fprintf(2, "tree: -L requires a non-negative integer depth\n");
++        exit(1);
++      }
++    } else if(argv[i][0] == '-' || pathset){
++      fprintf(2, "tree: usage: tree [path] [-L depth] [-d]\n");
++      exit(1);
++    } else {
++      path = argv[i];
++      pathset = 1;
++    }
++  }
++  if(strlen(path) >= MAXPATH){
++    fprintf(2, "tree: path too long\n");
++    exit(1);
++  }
++  exit(tree(path, 1, maxDepth, onlyDir));
++}

@@ -1,0 +1,13 @@
+
+xv6 kernel is booting
+
+hart 2 starting
+hart 1 starting
+init: starting sh
+$ echo one > f1
+$ (echo one; echo two) > f2
+$ diff f1 f2
+> f2:2: two
+$ echo REPORT_DIFF_OK
+REPORT_DIFF_OK
+$ QEMU: Terminated
